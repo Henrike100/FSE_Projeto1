@@ -1,12 +1,12 @@
-CC = gcc
-LDFLAGS =
+CC = g++
+LDFLAGS = -pthread
 BLDDIR = .
 INCDIR = $(BLDDIR)/inc
 SRCDIR = $(BLDDIR)/src
 OBJDIR = $(BLDDIR)/obj
 CFLAGS = -c -Wall -I$(INCDIR)
-SRC = $(wildcard $(SRCDIR)/*.c)
-OBJ = $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRC))
+SRC = $(wildcard $(SRCDIR)/*.cpp)
+OBJ = $(patsubst $(SRCDIR)/%.cpp, $(OBJDIR)/%.o, $(SRC))
 EXE = bin/bin
 
 all: clean $(EXE) 
@@ -14,7 +14,7 @@ all: clean $(EXE)
 $(EXE): $(OBJ) 
 	$(CC) $(LDFLAGS) $(OBJDIR)/*.o -o $@ 
 
-$(OBJDIR)/%.o : $(SRCDIR)/%.c
+$(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	@mkdir -p $(@D)
 	$(CC) $(CFLAGS) $< -o $@
 
