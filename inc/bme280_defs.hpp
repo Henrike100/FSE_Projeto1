@@ -115,8 +115,9 @@
 #endif
 
 /**\name I2C addresses */
-#define BME280_I2C_ADDR_PRIM                      UINT8_C(0x76)
-#define BME280_I2C_ADDR_SEC                       UINT8_C(0x77)
+#define SENSOR_INTERNO                            UINT8_C(0x76)
+#define SENSOR_EXTERNO                            UINT8_C(0x77)
+#define LCD                                       UINT8_C(0x27)
 
 /**\name BME280 chip identifier */
 #define BME280_CHIP_ID                            UINT8_C(0x60)

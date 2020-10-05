@@ -1,13 +1,11 @@
 #include <thread>
-#include <signal.h>
-#include <ctime>
-#include <unistd.h>         //Used for UART
-#include <fcntl.h>          //Used for UART
-#include <termios.h>        //Used for UART
 #include "interfaces.hpp"
 #include "paralelos.hpp"
 
 using namespace std;
+
+// Modificar bme280_defs.hpp
+// linha 118
 
 // TR, TI, TE são de leitura e escrita: controlar acesso
 
@@ -33,7 +31,7 @@ int main(int argc, const char *argv[]) {
         TR = pegar_temperatura(&TE);
         break;
     case 2:
-        thread_potenciometro = thread(ler_potenciometro);
+        thread_potenciometro = thread(ler_potenciometro, &TR);
         break;
     default:
         return 0;
