@@ -21,7 +21,7 @@ float TE = 30.0;
 
 int main(int argc, const char *argv[]) {
     signal(SIGINT, signal_handler);
-    thread thread_temperaturas(atualizar_temperaturas);
+    thread thread_temperaturas(atualizar_temperaturas, &TI, &TE);
     thread thread_potenciometro;
     
     int opt = menu_inicializacao();
