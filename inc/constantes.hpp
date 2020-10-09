@@ -10,6 +10,7 @@ using namespace std;
 #define ERRO_AO_ABRIR   -1
 #define INICIANDO        0
 #define FUNCIONANDO      1
+#define ENCERRADO        2
 
 extern const string opcoes[];
 

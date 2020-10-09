@@ -64,28 +64,24 @@ void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, int *h
 
 void mostrar_temperaturas(WINDOW *window, const int *opcao_usuario, const int *histerese,
                           const float *TI, const float *TE, const float *TR) {
-    int linha = 3;
-    int last_line = getmaxy(window) - 2;
+    int line_size = getmaxx(window); // 80
+    
+    const string spaces(((line_size/3)-5)/2, ' ');
 
     while(programa_pode_continuar) {
         if(*opcao_usuario == 0 or *histerese == -1) {
             usleep(100000);
             continue;
         }
-        mvwprintw(window, min(last_line, linha), 1," %.1f ", *TI);
-        wvline(window, 0, 1);
-        mvwprintw(window, min(last_line, linha), 24," %.1f ", *TE);
-        wvline(window, 0, 1);
-        mvwprintw(window, min(last_line, linha), 47," %.1f", *TR);
+        mvwprintw(window, 3, 1, "%s%.1f%s", spaces.c_str(), *TI, spaces.c_str());
+        mvwvline(window, 3, line_size/3, 0, 1);
+        mvwprintw(window, 3, line_size/3+1, "%s%.1f%s", spaces.c_str(), *TE, spaces.c_str());
+        mvwvline(window, 3, 2*line_size/3, 0, 1);
+        mvwprintw(window, 3, 2*line_size/3+1, "%s%.1f%s", spaces.c_str(), *TR, spaces.c_str());
 
         box(window, 0, 0);
         wrefresh(window);
-        if(linha >= last_line+1) {
-            scroll(window);
-        }
-        else
-            linha++;
-        usleep(100000);
+        usleep(500000);
     }
 }
 
@@ -105,13 +101,13 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
     
     if(file == NULL) {
         csv = ERRO_AO_ABRIR;
-        //atualizar_logs(window, "CSV", ERRO_AO_ABRIR);
+        atualizar_logs(window, "CSV", ERRO_AO_ABRIR);
         programa_pode_continuar = false;
         return;
     }
     
     csv = FUNCIONANDO;
-    //atualizar_logs(window, "CSV", FUNCIONANDO);
+    atualizar_logs(window, "CSV", FUNCIONANDO);
 
     fprintf(file, "Data/Hora, Temperatura Interna, Temperatura Externa, Temperatura de Referência\n");
 
@@ -131,6 +127,7 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
     }
 
     fclose(file);
+    atualizar_logs(window, "CSV", ENCERRADO);
 }
 
 void atualizar_lcd(WINDOW *window, float *TI, float *TE, float *TR) {
@@ -154,12 +151,13 @@ void ler_UART(WINDOW *window, float *TI, float *TR) {
     
     if (uart0_filestream == -1) {
         uart = ERRO_AO_ABRIR;
-        //atualizar_logs(window, "UART", ERRO_AO_ABRIR);
-        programa_pode_continuar = false;
+        atualizar_logs(window, "UART", ERRO_AO_ABRIR);
+        //programa_pode_continuar = false;
         return;
     }
     
     uart = FUNCIONANDO;
+    atualizar_logs(window, "UART", FUNCIONANDO);
 
     struct termios options;
     tcgetattr(uart0_filestream, &options);
@@ -170,6 +168,6 @@ void ler_UART(WINDOW *window, float *TI, float *TR) {
     tcflush(uart0_filestream, TCIFLUSH);
     tcsetattr(uart0_filestream, TCSANOW, &options);
 
-    unsigned char pede_TI[] = {0xA1, 0, 3, 9, 4};
-    unsigned char pede_TR[] = {0xA2, 0, 3, 9, 4};
+    //unsigned char pede_TI[] = {0xA1, 0, 3, 9, 4};
+    //unsigned char pede_TR[] = {0xA2, 0, 3, 9, 4};
 }

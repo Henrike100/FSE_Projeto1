@@ -41,12 +41,16 @@ void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_ant
 }
 
 void iniciar_saida(WINDOW *window, const int size_x) {
-    mvwprintw(window, 1, 1, " Temperatura Interna ");
-    wvline(window, 0, 1);
-    mvwprintw(window, 1, 24, " Temperatura Externa ");
-    wvline(window, 0, 1);
-    mvwprintw(window, 1, 47, " Temperatura de Referência ");
-    mvwhline(window, 2, 0, 0, size_x/2);
+    int line_size = getmaxx(window);
+    const string spaces1(((line_size/3)-20)/2, ' ');
+    const string spaces3(((line_size/3)-26)/2, ' ');
+
+    mvwprintw(window, 1, 1, "%sTEMPERATURA INTERNA%s", spaces1.c_str(), spaces1.c_str());
+    mvwvline(window, 1, line_size/3, 0, 1);
+    mvwprintw(window, 1, line_size/3 + 1, "%sTEMPERATURA EXTERNA%s", spaces1.c_str(), spaces1.c_str());
+    mvwvline(window, 1, 2*line_size/3, 0, 1);
+    mvwprintw(window, 1, 2*line_size/3 + 1, "%sTEMPERATURA DE REFERENCIA%s", spaces3.c_str(), spaces3.c_str());
+    mvwhline(window, 2, 0, 0, size_x);
     box(window, 0, 0);
     wrefresh(window);
 }
@@ -56,7 +60,7 @@ void iniciar_logs(WINDOW *window) {
     int vertical_size = getmaxy(window);
 
     mvwprintw(window, 1, 1, "Informacoes do Sistema");
-    mvwvline(window, 3, line_size/2, 0, vertical_size-5);
+    mvwvline(window, 3, line_size/2, 0, vertical_size-18);
     mvwhline(window, 3, 0, 0, line_size);
     mvwprintw(window, 4, 1, "DISPOSITIVO"); mvwprintw(window, 4, (line_size/2)+2, "STATUS");
     mvwhline(window, 5, 0, 0, line_size);
@@ -102,11 +106,15 @@ void atualizar_logs(WINDOW *window, string dispositivo, const int status) {
     case 1:
         status_str = "Funcionando";
         break;
+    case 2:
+        status_str = "Encerrado";
+        break;
     default:
         break;
     }
 
-    mvwprintw(window, linha, 1, dispositivo.c_str());
+    wmove(window, linha, (line_size/2)+2);
+    wclrtoeol(window);
     mvwprintw(window, linha, (line_size/2)+2, status_str.c_str());
 
     box(window, 0, 0);

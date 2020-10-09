@@ -20,12 +20,9 @@ int main(int argc, const char *argv[]) {
 
     getmaxyx(stdscr, size_y, size_x);
 
-    WINDOW *entrada = newwin(size_y/2,size_x/2, 0, 0),
-           *saida   = newwin(size_y,size_x/2, 0, size_x/2), 
-           *logs    = newwin(size_y/2,size_x/2, size_y/2, 0);
-        
-    scrollok(saida, true);
-    wsetscrreg(saida, 3, size_y-2);
+    WINDOW *saida   = newwin(5, size_x, 0, 0),
+           *entrada = newwin(size_y-5, size_x/2-1, 5, 0),
+           *logs    = newwin(size_y-5, size_x/2, 5, size_x/2);
 
     box(entrada, 0, 0);
     box(saida, 0, 0);
