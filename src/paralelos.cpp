@@ -2,48 +2,88 @@
 
 const char path[] = "/dev/i2c-1";
 
-struct identifier {
-    /* Variable to hold device address */
-    uint8_t dev_addr;
-
-    /* Variable that contains file descriptor */
-    int8_t fd;
-};
-
 bool programa_pode_continuar = true;
 
 void signal_handler(int signum) {
     programa_pode_continuar = false;
-    printf("Parando\n");
 }
 
-void ler_potenciometro(float *TR) {
-    const char codigo = 0xA2;
-    char padrao[] = {codigo, 0, 3, 9, 4};
-    int uart0_filestream = -1;
+void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, int *histerese, float *TE, float *TR) {
+    int last_line = getmaxy(window);
 
-    uart0_filestream = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);      //Open in non blocking read/write mode
-    if (uart0_filestream == -1) {
-        printf("Erro - Não foi possível iniciar a UART.\n");
-        programa_pode_continuar = false;
-    }
+    do {
+        if(*opcao_usuario != 3)
+            *opcao_anterior = *opcao_usuario;
 
-    struct termios options;
-    tcgetattr(uart0_filestream, &options);
-    options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;     //<Set baud rate
-    options.c_iflag = IGNPAR;
-    options.c_oflag = 0;
-    options.c_lflag = 0;
-    tcflush(uart0_filestream, TCIFLUSH);
-    tcsetattr(uart0_filestream, TCSANOW, &options);
+        bool invalid = false;
+
+        do {
+            wmove(window, 11, 1);
+            wclrtoeol(window);
+            box(window, 0, 0);
+            if(invalid) {
+                mvwprintw(window, last_line-2, 1, "Escolha deve estar entre 0 e 3");
+            }
+
+            wrefresh(window);
+
+            mvwprintw(window, 11, 1, "Escolha a opcao: ");
+            mvwscanw(window, 11, 18, " %d", opcao_usuario);
+
+            invalid = *opcao_usuario < 0 || *opcao_usuario > 3;
+        } while (invalid);
+
+        if(!(*opcao_usuario)) break;
+
+        atualizar_menu(window, *opcao_usuario, *opcao_anterior, *histerese);
+
+        switch (*opcao_usuario) {
+        case 1:
+            pegar_temperatura(window, *TE, TR);
+            break;
+        case 2:
+            
+            break;
+        case 3:
+            pegar_histerese(window, *opcao_usuario, *opcao_anterior, histerese);
+            break;
+        default:
+            break;
+        }
+
+        if(*histerese == -1) {
+            pegar_histerese(window, *opcao_usuario, *opcao_anterior, histerese);
+        }
+    } while(programa_pode_continuar);
+
+    programa_pode_continuar = false;
+}
+
+void mostrar_temperaturas(WINDOW *window, const int *opcao_usuario, const int *histerese,
+                          const float *TI, const float *TE, const float *TR) {
+    int linha = 3;
+    int last_line = getmaxy(window) - 2;
 
     while(programa_pode_continuar) {
-        write(uart0_filestream, &padrao[0], 5);
-        usleep(100000);
-        read(uart0_filestream, TR, 4);
-    }
+        if(*opcao_usuario == 0 or *histerese == -1) {
+            usleep(100000);
+            continue;
+        }
+        mvwprintw(window, min(last_line, linha), 1," %.1f ", *TI);
+        wvline(window, 0, 1);
+        mvwprintw(window, min(last_line, linha), 24," %.1f ", *TE);
+        wvline(window, 0, 1);
+        mvwprintw(window, min(last_line, linha), 47," %.1f", *TR);
 
-    close(uart0_filestream);
+        box(window, 0, 0);
+        wrefresh(window);
+        if(linha >= last_line+1) {
+            scroll(window);
+        }
+        else
+            linha++;
+        usleep(100000);
+    }
 }
 
 void gerar_log_csv(float *TI, float *TE, float *TR) {
@@ -69,62 +109,7 @@ void gerar_log_csv(float *TI, float *TE, float *TR) {
     fclose(file);
 }
 
-struct bme280_dev criar_dev(uint8_t addr) {
-    struct bme280_dev dev;
-    struct identifier id;
-
-    id.fd = open(path, O_RDWR);
-    id.dev_addr = addr;
-    dev.intf = BME280_I2C_INTF;
-    dev.intf_ptr = &id;
-
-    return dev;
-}
-
-void atualizar_temperaturas(float *TI, float *TE) {
-    struct bme280_dev dev_interno = criar_dev(SENSOR_INTERNO), dev_externo = criar_dev(SENSOR_EXTERNO);
-
-    bme280_init(&dev_interno);
-    bme280_init(&dev_externo);
-
-    struct bme280_data comp_data_int, comp_data_ext;
-
-    dev_interno.settings.osr_h = dev_externo.settings.osr_h = BME280_OVERSAMPLING_1X;
-    dev_interno.settings.osr_h = dev_externo.settings.osr_h = BME280_OVERSAMPLING_16X;
-    dev_interno.settings.osr_h = dev_externo.settings.osr_h = BME280_OVERSAMPLING_2X;
-    dev_interno.settings.osr_h = dev_externo.settings.osr_h = BME280_FILTER_COEFF_16;
-
-    uint8_t settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
-
-    bme280_set_sensor_settings(settings_sel, &dev_interno);
-    bme280_set_sensor_settings(settings_sel, &dev_externo);
-
-    while(programa_pode_continuar) {
-        bme280_set_sensor_mode(BME280_FORCED_MODE, &dev_interno);
-        bme280_set_sensor_mode(BME280_FORCED_MODE, &dev_externo);
-
-        bme280_get_sensor_data(BME280_ALL, &comp_data_int, &dev_interno);
-        bme280_get_sensor_data(BME280_ALL, &comp_data_ext, &dev_externo);
-
-        *TI = comp_data_int.temperature;
-        *TE = comp_data_ext.temperature;
-
-        usleep(100000);
-    }
-}
-
-void apresentar_temperaturas(float *TI, float *TE, float *TR) {
-    printf("-------------------------------------------------------------------------\n");
-    printf("| Temperatura Interna | Temperatura Externa | Temperatura de Referência |\n");
-
-    while(programa_pode_continuar) {
-        printf("-------------------------------------------------------------------------\n");
-        printf("|         %.1lf        |         %.1lf        |           %.1lf            |\n", *TI, *TE, *TR);
-        usleep(500000);
-    }
-}
-
-void atualizar_lcd() {
+void atualizar_lcd(float *TI, float *TE, float *TR) {
     while(programa_pode_continuar) {
         //printf("Atualiza LCD a cada 1s\n");
         usleep(1000000);

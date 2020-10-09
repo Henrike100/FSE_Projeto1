@@ -1,10 +1,14 @@
 #ifndef INTERFACES_HPP
 #define INTERFACES_HPP
 
-#include <stdio.h>
+#include <ncurses.h>
+#include "constantes.hpp"
 
-int menu_inicializacao();
-float pegar_histerese();
-float pegar_temperatura(float *TE);
+void mostrar_opcoes(WINDOW *window);
+void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_anterior, const int histerese);
+void iniciar_saida(WINDOW *window, const int size_x);
+void iniciar_logs(WINDOW *window);
+void pegar_temperatura(WINDOW *window, const float TE, float *TR);
+void pegar_histerese(WINDOW *window, const int opcao_usuario, const int opcao_anterior, int *histerese);
 
 #endif // INTERFACES_HPP
