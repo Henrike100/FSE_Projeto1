@@ -56,23 +56,58 @@ void iniciar_logs(WINDOW *window) {
     int vertical_size = getmaxy(window);
 
     mvwprintw(window, 1, 1, "Informacoes do Sistema");
-    mvwvline(window, 3, line_size/2, 0, vertical_size-3);
+    mvwvline(window, 3, line_size/2, 0, vertical_size-5);
     mvwhline(window, 3, 0, 0, line_size);
     mvwprintw(window, 4, 1, "DISPOSITIVO"); mvwprintw(window, 4, (line_size/2)+2, "STATUS");
     mvwhline(window, 5, 0, 0, line_size);
-    mvwprintw(window, 6, 1, "Arduino"); mvwprintw(window, 6, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 6, 1, "Arduino (TI / TR)"); mvwprintw(window, 6, (line_size/2)+2, "Iniciando");
     mvwhline(window, 7, 0, 0, line_size);
     mvwprintw(window, 8, 1, "Resistor"); mvwprintw(window, 8, (line_size/2)+2, "Iniciando");
     mvwhline(window, 9, 0, 0, line_size);
     mvwprintw(window, 10, 1, "Ventoinha"); mvwprintw(window, 10, (line_size/2)+2, "Iniciando");
     mvwhline(window, 11, 0, 0, line_size);
-    mvwprintw(window, 12, 1, "Sensor Interno"); mvwprintw(window, 12, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 12, 1, "Sensor Externo (TE)"); mvwprintw(window, 12, (line_size/2)+2, "Iniciando");
     mvwhline(window, 13, 0, 0, line_size);
-    mvwprintw(window, 14, 1, "Sensor Externo"); mvwprintw(window, 14, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 14, 1, "Display LCD"); mvwprintw(window, 14, (line_size/2)+2, "Iniciando");
     mvwhline(window, 15, 0, 0, line_size);
-    mvwprintw(window, 16, 1, "Display LCD"); mvwprintw(window, 16, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 16, 1, "Arquivo CSV"); mvwprintw(window, 16, (line_size/2)+2, "Iniciando");
     mvwhline(window, 17, 0, 0, line_size);
-    mvwprintw(window, 18, 1, "Arquivo CSV"); mvwprintw(window, 18, (line_size/2)+2, "Iniciando");
+
+    box(window, 0, 0);
+    wrefresh(window);
+}
+
+void atualizar_logs(WINDOW *window, string dispositivo, const int status) {
+    int line_size = getmaxx(window);
+    int linha;
+
+    if(dispositivo == "UART") {
+        linha = 6;
+        dispositivo = "Arduino (TI / TR)";
+    }
+    else if(dispositivo == "CSV") {
+        linha = 16;
+        dispositivo = "Arquivo CSV";
+    }
+
+    string status_str;
+
+    switch (status) {
+    case -1:
+        status_str = "Erro ao abrir";
+        break;
+    case 0:
+        status_str = "Iniciando";
+        break;
+    case 1:
+        status_str = "Funcionando";
+        break;
+    default:
+        break;
+    }
+
+    mvwprintw(window, linha, 1, dispositivo.c_str());
+    mvwprintw(window, linha, (line_size/2)+2, status_str.c_str());
 
     box(window, 0, 0);
     wrefresh(window);

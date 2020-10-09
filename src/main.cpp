@@ -42,15 +42,18 @@ int main(int argc, const char *argv[]) {
 
     atualizar_menu(entrada, opcao_usuario, opcao_anterior, histerese);
 
+    thread thread_lcd(atualizar_lcd, logs, &TI, &TE, &TR);
+    thread thread_csv(gerar_log_csv, logs, &TI, &TE, &TR);
+    thread thread_uart(ler_UART, logs, &TI, &TR);
+
     thread thread_entrada(pegar_opcao, entrada, &opcao_usuario, &opcao_anterior, &histerese, &TE, &TR);
     thread thread_saida(mostrar_temperaturas, saida, &opcao_usuario, &histerese, &TI, &TE, &TR);
-    thread thread_lcd(atualizar_lcd, &TI, &TE, &TR);
-    thread thread_csv(gerar_log_csv, &TI, &TE, &TR);
     
-    thread_entrada.join();
-    thread_saida.join();
     thread_lcd.join();
     thread_csv.join();
+    thread_uart.join();
+    thread_entrada.join();
+    thread_saida.join();
 
     delwin(entrada);
     delwin(saida);

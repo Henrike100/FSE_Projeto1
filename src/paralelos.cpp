@@ -2,6 +2,9 @@
 
 const char path[] = "/dev/i2c-1";
 
+int uart = INICIANDO;
+int csv  = INICIANDO;
+
 bool programa_pode_continuar = true;
 
 void signal_handler(int signum) {
@@ -86,9 +89,30 @@ void mostrar_temperaturas(WINDOW *window, const int *opcao_usuario, const int *h
     }
 }
 
-void gerar_log_csv(float *TI, float *TE, float *TR) {
+void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
     FILE *file;
-    file = fopen("arquivo.csv", "w+");
+    int tentativas = 0;
+
+    do {
+        file = fopen("arquivo.csv", "w+");
+        if(file == NULL) {
+            tentativas++;
+            usleep(1000000);
+        }
+        else
+            break;
+    } while (tentativas < MAX_TENTATIVAS);
+    
+    if(file == NULL) {
+        csv = ERRO_AO_ABRIR;
+        //atualizar_logs(window, "CSV", ERRO_AO_ABRIR);
+        programa_pode_continuar = false;
+        return;
+    }
+    
+    csv = FUNCIONANDO;
+    //atualizar_logs(window, "CSV", FUNCIONANDO);
+
     fprintf(file, "Data/Hora, Temperatura Interna, Temperatura Externa, Temperatura de Referência\n");
 
     while(programa_pode_continuar) {
@@ -109,9 +133,43 @@ void gerar_log_csv(float *TI, float *TE, float *TR) {
     fclose(file);
 }
 
-void atualizar_lcd(float *TI, float *TE, float *TR) {
+void atualizar_lcd(WINDOW *window, float *TI, float *TE, float *TR) {
     while(programa_pode_continuar) {
         //printf("Atualiza LCD a cada 1s\n");
         usleep(1000000);
     }
+}
+
+void ler_UART(WINDOW *window, float *TI, float *TR) {
+    int uart0_filestream = -1;
+    int tentativas = 0;
+    do {
+        if (uart0_filestream == -1) {
+            tentativas++;
+            usleep(1000000);
+        }
+        else
+            break;
+    } while (tentativas < MAX_TENTATIVAS);
+    
+    if (uart0_filestream == -1) {
+        uart = ERRO_AO_ABRIR;
+        //atualizar_logs(window, "UART", ERRO_AO_ABRIR);
+        programa_pode_continuar = false;
+        return;
+    }
+    
+    uart = FUNCIONANDO;
+
+    struct termios options;
+    tcgetattr(uart0_filestream, &options);
+    options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;
+    options.c_iflag = IGNPAR;
+    options.c_oflag = 0;
+    options.c_lflag = 0;
+    tcflush(uart0_filestream, TCIFLUSH);
+    tcsetattr(uart0_filestream, TCSANOW, &options);
+
+    unsigned char pede_TI[] = {0xA1, 0, 3, 9, 4};
+    unsigned char pede_TR[] = {0xA2, 0, 3, 9, 4};
 }

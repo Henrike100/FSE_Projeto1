@@ -5,6 +5,12 @@
 
 using namespace std;
 
+#define MAX_TENTATIVAS 5
+
+#define ERRO_AO_ABRIR   -1
+#define INICIANDO        0
+#define FUNCIONANDO      1
+
 extern const string opcoes[];
 
 #endif // CONSTANTES_HPP
