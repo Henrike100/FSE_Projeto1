@@ -1,6 +1,9 @@
 #include "interfaces.hpp"
 
+mutex mtx;
+
 void mostrar_opcoes(WINDOW *window) {
+    mtx.lock();
     int line_size = getmaxx(window);
 
     mvwhline(window, 2, 0, 0, line_size);
@@ -12,9 +15,11 @@ void mostrar_opcoes(WINDOW *window) {
     mvwprintw(window, 9, 1, "0. Sair");
 
     wrefresh(window);
+    mtx.unlock();
 }
 
 void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_anterior, const float histerese) {
+    mtx.lock();
     int line_size = getmaxx(window);
     int last_line = getmaxy(window);
 
@@ -38,9 +43,11 @@ void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_ant
     wclrtoeol(window);
     box(window, 0, 0);
     wrefresh(window);
+    mtx.unlock();
 }
 
 void iniciar_saida(WINDOW *window, const int size_x) {
+    mtx.lock();
     int line_size = getmaxx(window);
     const string spaces1(((line_size/3)-20)/2, ' ');
     const string spaces3(((line_size/3)-26)/2, ' ');
@@ -53,80 +60,62 @@ void iniciar_saida(WINDOW *window, const int size_x) {
     mvwhline(window, 2, 0, 0, size_x);
     box(window, 0, 0);
     wrefresh(window);
+    mtx.unlock();
 }
 
 void iniciar_logs(WINDOW *window) {
+    mtx.lock();
     int line_size = getmaxx(window);
     int vertical_size = getmaxy(window);
 
     mvwprintw(window, 1, 1, "Informacoes do Sistema");
-    mvwvline(window, 3, line_size/2, 0, vertical_size-20);
+    mvwvline(window, 3, line_size/2, 0, vertical_size-18);
     mvwhline(window, 3, 0, 0, line_size);
     mvwprintw(window, 4, 1, "DISPOSITIVO"); mvwprintw(window, 4, (line_size/2)+2, "STATUS");
     mvwhline(window, 5, 0, 0, line_size);
-    mvwprintw(window, 6, 1, "Arduino (TI / TR)"); mvwprintw(window, 6, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 6, 1, dispositivos[0].c_str()); mvwprintw(window, 6, (line_size/2)+2, "Iniciando");
     mvwhline(window, 7, 0, 0, line_size);
-    mvwprintw(window, 8, 1, "Resistor"); mvwprintw(window, 8, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 8, 1, dispositivos[1].c_str()); mvwprintw(window, 8, (line_size/2)+2, "Iniciando");
     mvwhline(window, 9, 0, 0, line_size);
-    mvwprintw(window, 10, 1, "Ventoinha"); mvwprintw(window, 10, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 10, 1, dispositivos[2].c_str()); mvwprintw(window, 10, (line_size/2)+2, "Iniciando");
     mvwhline(window, 11, 0, 0, line_size);
-    mvwprintw(window, 12, 1, "Sensor Externo (TE)"); mvwprintw(window, 12, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 12, 1, dispositivos[3].c_str()); mvwprintw(window, 12, (line_size/2)+2, "Iniciando");
     mvwhline(window, 13, 0, 0, line_size);
-    mvwprintw(window, 14, 1, "Display LCD"); mvwprintw(window, 14, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 14, 1, dispositivos[4].c_str()); mvwprintw(window, 14, (line_size/2)+2, "Iniciando");
     mvwhline(window, 15, 0, 0, line_size);
-    mvwprintw(window, 16, 1, "Arquivo CSV"); mvwprintw(window, 16, (line_size/2)+2, "Iniciando");
+    mvwprintw(window, 16, 1, dispositivos[5].c_str()); mvwprintw(window, 16, (line_size/2)+2, "Iniciando");
     mvwhline(window, 17, 0, 0, line_size);
+    mvwprintw(window, 18, 1, dispositivos[6].c_str()); mvwprintw(window, 18, (line_size/2)+2, "Iniciando");
+    mvwhline(window, 19, 0, 0, line_size);
 
     box(window, 0, 0);
     wrefresh(window);
+    mtx.unlock();
 }
 
-void atualizar_logs(WINDOW *window, string dispositivo, const int status) {
-    int line_size = getmaxx(window);
-    int linha;
-
-    if(dispositivo == "UART") {
-        linha = 6;
-        dispositivo = "Arduino (TI / TR)";
-    }
-    else if(dispositivo == "CSV") {
-        linha = 16;
-        dispositivo = "Arquivo CSV";
-    }
-
-    string status_str;
-
-    switch (status) {
-    case -1:
-        status_str = "Erro ao abrir";
-        break;
-    case 0:
-        status_str = "Iniciando";
-        break;
-    case 1:
-        status_str = "Funcionando";
-        break;
-    case 2:
-        status_str = "Encerrado";
-        break;
-    default:
-        break;
-    }
+void atualizar_logs(WINDOW *window, const int dispositivo, const int st) {
+    mtx.lock();
+    const int line_size = getmaxx(window);
+    const int linha = (2*dispositivo)+6;
 
     wmove(window, linha, (line_size/2)+2);
     wclrtoeol(window);
-    mvwprintw(window, linha, (line_size/2)+2, status_str.c_str());
+    mvwprintw(window, linha, (line_size/2)+2, status[st].c_str());
 
     box(window, 0, 0);
     wrefresh(window);
+    mtx.unlock();
 }
 
 void pegar_temperatura(WINDOW *window, const float TE, float *TR) {
+    mtx.lock();
     int last_line = getmaxy(window);
+    mtx.unlock();
     bool invalid = false;
     float temperatura;
 
     do {
+        mtx.lock();
         wmove(window, 11, 1);
         wclrtoeol(window);
         box(window, 0, 0);
@@ -138,6 +127,7 @@ void pegar_temperatura(WINDOW *window, const float TE, float *TR) {
         wrefresh(window);
 
         mvwprintw(window, 11, 1, "Digite o valor da temperatura: ");
+        mtx.unlock();
         mvwscanw(window, 11, 32, " %f", &temperatura);
         invalid = temperatura < TE;
     } while (invalid);
@@ -146,11 +136,14 @@ void pegar_temperatura(WINDOW *window, const float TE, float *TR) {
 }
 
 void pegar_histerese(WINDOW *window, const int opcao_usuario, const int opcao_anterior, float *histerese) {
+    mtx.lock();
     int last_line = getmaxy(window);
+    mtx.unlock();
     bool invalid = false;
     float temp;
 
     do {
+        mtx.lock();
         wmove(window, 11, 1);
         wclrtoeol(window);
         box(window, 0, 0);
@@ -162,6 +155,7 @@ void pegar_histerese(WINDOW *window, const int opcao_usuario, const int opcao_an
         wrefresh(window);
 
         mvwprintw(window, 11, 1, "Digite o valor da histerese: ");
+        mtx.unlock();
         mvwscanw(window, 11, 30, " %f", &temp);
         invalid = !(temp > 0.0f);
     } while (invalid);

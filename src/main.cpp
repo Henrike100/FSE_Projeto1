@@ -41,12 +41,14 @@ int main(int argc, const char *argv[]) {
 
     thread thread_csv(gerar_log_csv, logs, &TI, &TE, &TR);
     thread thread_uart(comunicar_uart, logs, &TI, &TR);
+    thread thread_i2c(usar_i2c, logs, &TI, &TE, &TR);
 
     thread thread_entrada(pegar_opcao, entrada, &opcao_usuario, &opcao_anterior, &histerese, &TE, &TR);
     thread thread_saida(mostrar_temperaturas, saida, &opcao_usuario, &histerese, &TI, &TE, &TR);
     
     thread_csv.join();
     thread_uart.join();
+    thread_i2c.join();
     thread_entrada.join();
     thread_saida.join();
 

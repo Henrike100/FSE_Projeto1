@@ -4,6 +4,7 @@ const char path[] = "/dev/i2c-1";
 
 int uart = INICIANDO;
 int csv  = INICIANDO;
+int i2c  = INICIANDO;
 
 struct identifier {
     /* Variable to hold device address */
@@ -101,21 +102,25 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
         file = fopen("arquivo.csv", "w+");
         if(file == NULL) {
             tentativas++;
-            usleep(1000000);
         }
         else
             break;
+        
+        if(!programa_pode_continuar)
+            return;
+
+        usleep(500000);
     } while (tentativas < MAX_TENTATIVAS);
     
     if(file == NULL) {
         csv = ERRO_AO_ABRIR;
-        atualizar_logs(window, "CSV", ERRO_AO_ABRIR);
+        atualizar_logs(window, CSV, ERRO_AO_ABRIR);
         programa_pode_continuar = false;
         return;
     }
     
     csv = FUNCIONANDO;
-    atualizar_logs(window, "CSV", FUNCIONANDO);
+    atualizar_logs(window, CSV, FUNCIONANDO);
 
     fprintf(file, "Data/Hora, Temperatura Interna, Temperatura Externa, Temperatura de Referência\n");
 
@@ -135,30 +140,37 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
     }
 
     fclose(file);
-    atualizar_logs(window, "CSV", ENCERRADO);
+    atualizar_logs(window, CSV, ENCERRADO);
 }
 
 void comunicar_uart(WINDOW *window, float *TI, float *TR) {
     int uart0_filestream = -1;
     int tentativas = 0;
     do {
+        uart0_filestream = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);
         if (uart0_filestream == -1) {
             tentativas++;
-            usleep(1000000);
         }
         else
             break;
+        
+        if(!programa_pode_continuar)
+            return;
+
+        usleep(500000);
     } while (tentativas < MAX_TENTATIVAS);
     
     if (uart0_filestream == -1) {
         uart = ERRO_AO_ABRIR;
-        atualizar_logs(window, "UART", ERRO_AO_ABRIR);
+        atualizar_logs(window, SENSOR_INTERNO, ERRO_AO_ABRIR);
+        atualizar_logs(window, TEMPERATURA_REFERENCIA, ERRO_AO_ABRIR);
         //programa_pode_continuar = false;
         return;
     }
     
     uart = FUNCIONANDO;
-    atualizar_logs(window, "UART", FUNCIONANDO);
+    atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
+    atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
 
     struct termios options;
     tcgetattr(uart0_filestream, &options);
@@ -182,7 +194,7 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR) {
             //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
         }
         else {
-            atualizar_logs(window, "UART", FUNCIONANDO);
+            atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
         }
 
         // Recebe temepratura interna
@@ -195,7 +207,7 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR) {
             //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
         }
         else {
-            atualizar_logs(window, "UART", FUNCIONANDO);
+            atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
         }
 
         // Pede temperatura de referencia
@@ -205,7 +217,7 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR) {
             //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
         }
         else {
-            atualizar_logs(window, "UART", FUNCIONANDO);
+            atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
         }
 
         // Recebe temepratura referencia
@@ -218,14 +230,15 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR) {
             //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
         }
         else {
-            atualizar_logs(window, "UART", FUNCIONANDO);
+            atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
         }
 
         usleep(100000);
     }
 
     close(uart0_filestream);
-    atualizar_logs(window, "UART", ENCERRADO);
+    atualizar_logs(window, SENSOR_INTERNO, ENCERRADO);
+    atualizar_logs(window, TEMPERATURA_REFERENCIA, ENCERRADO);
 }
 
 void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *histerese) {
@@ -235,13 +248,31 @@ void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *hi
 void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
     struct bme280_dev dev;
     struct identifier id;
-    const char path[] = "/dev/i2c-1";
+    int tentativas = 0;
+    do {
+        id.fd = open(path, O_RDWR);
+        if(id.fd < 0) {
+            tentativas++;
+        }
+        else
+            break;
+        
+        if(!programa_pode_continuar)
+            return;
 
-    if((id.fd = open(path, O_RDWR)) < 0) {
+        usleep(500000);
+    } while (tentativas < MAX_TENTATIVAS);
+
+    if(id.fd < 0) {
         // Failed to open the i2c bus
+        i2c = ERRO_AO_ABRIR;
+        atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
+        atualizar_logs(window, LCD, ERRO_AO_ABRIR);
+        //programa_pode_continuar = false;
+        return;
     }
 
-    id.dev_addr = SENSOR_EXTERNO;
+    id.dev_addr = ENDERECO_SENSOR_EXTERNO;
     if (ioctl(id.fd, I2C_SLAVE, id.dev_addr) < 0) {
         // Failed to acquire bus access and/or talk to slave
     }

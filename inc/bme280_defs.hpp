@@ -115,7 +115,7 @@
 #endif
 
 /**\name I2C addresses */
-#define SENSOR_EXTERNO                            UINT8_C(0x76)
+#define ENDERECO_SENSOR_EXTERNO                   UINT8_C(0x76)
 #define BME280_I2C_ADDR_SEC                       UINT8_C(0x77)
 
 /**\name BME280 chip identifier */
