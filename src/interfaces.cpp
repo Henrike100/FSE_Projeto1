@@ -14,7 +14,7 @@ void mostrar_opcoes(WINDOW *window) {
     wrefresh(window);
 }
 
-void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_anterior, const int histerese) {
+void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_anterior, const float histerese) {
     int line_size = getmaxx(window);
     int last_line = getmaxy(window);
 
@@ -32,7 +32,7 @@ void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_ant
     if(histerese == -1)
         mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: Não definido");
     else
-        mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: %d", histerese);
+        mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: %.1f", histerese);
 
     wmove(window, last_line-2, 1);
     wclrtoeol(window);
@@ -60,7 +60,7 @@ void iniciar_logs(WINDOW *window) {
     int vertical_size = getmaxy(window);
 
     mvwprintw(window, 1, 1, "Informacoes do Sistema");
-    mvwvline(window, 3, line_size/2, 0, vertical_size-18);
+    mvwvline(window, 3, line_size/2, 0, vertical_size-20);
     mvwhline(window, 3, 0, 0, line_size);
     mvwprintw(window, 4, 1, "DISPOSITIVO"); mvwprintw(window, 4, (line_size/2)+2, "STATUS");
     mvwhline(window, 5, 0, 0, line_size);
@@ -145,10 +145,10 @@ void pegar_temperatura(WINDOW *window, const float TE, float *TR) {
     *TR = temperatura;
 }
 
-void pegar_histerese(WINDOW *window, const int opcao_usuario, const int opcao_anterior, int *histerese) {
+void pegar_histerese(WINDOW *window, const int opcao_usuario, const int opcao_anterior, float *histerese) {
     int last_line = getmaxy(window);
     bool invalid = false;
-    int temp;
+    float temp;
 
     do {
         wmove(window, 11, 1);
@@ -162,8 +162,8 @@ void pegar_histerese(WINDOW *window, const int opcao_usuario, const int opcao_an
         wrefresh(window);
 
         mvwprintw(window, 11, 1, "Digite o valor da histerese: ");
-        mvwscanw(window, 11, 30, " %d", &temp);
-        invalid = temp < 1;
+        mvwscanw(window, 11, 30, " %f", &temp);
+        invalid = !(temp > 0.0f);
     } while (invalid);
 
     *histerese = temp;

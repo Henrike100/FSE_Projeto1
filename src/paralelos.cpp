@@ -5,13 +5,21 @@ const char path[] = "/dev/i2c-1";
 int uart = INICIANDO;
 int csv  = INICIANDO;
 
+struct identifier {
+    /* Variable to hold device address */
+    uint8_t dev_addr;
+
+    /* Variable that contains file descriptor */
+    int8_t fd;
+};
+
 bool programa_pode_continuar = true;
 
 void signal_handler(int signum) {
     programa_pode_continuar = false;
 }
 
-void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, int *histerese, float *TE, float *TR) {
+void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, float *histerese, float *TE, float *TR) {
     int last_line = getmaxy(window);
 
     do {
@@ -54,7 +62,7 @@ void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, int *h
             break;
         }
 
-        if(*histerese == -1) {
+        if(*histerese < 0.0f) {
             pegar_histerese(window, *opcao_usuario, *opcao_anterior, histerese);
         }
     } while(programa_pode_continuar);
@@ -62,9 +70,9 @@ void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, int *h
     programa_pode_continuar = false;
 }
 
-void mostrar_temperaturas(WINDOW *window, const int *opcao_usuario, const int *histerese,
+void mostrar_temperaturas(WINDOW *window, const int *opcao_usuario, const float *histerese,
                           const float *TI, const float *TE, const float *TR) {
-    int line_size = getmaxx(window); // 80
+    const int line_size = getmaxx(window);
     
     const string spaces(((line_size/3)-5)/2, ' ');
 
@@ -130,14 +138,7 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
     atualizar_logs(window, "CSV", ENCERRADO);
 }
 
-void atualizar_lcd(WINDOW *window, float *TI, float *TE, float *TR) {
-    while(programa_pode_continuar) {
-        //printf("Atualiza LCD a cada 1s\n");
-        usleep(1000000);
-    }
-}
-
-void ler_UART(WINDOW *window, float *TI, float *TR) {
+void comunicar_uart(WINDOW *window, float *TI, float *TR) {
     int uart0_filestream = -1;
     int tentativas = 0;
     do {
@@ -168,6 +169,121 @@ void ler_UART(WINDOW *window, float *TI, float *TR) {
     tcflush(uart0_filestream, TCIFLUSH);
     tcsetattr(uart0_filestream, TCSANOW, &options);
 
-    //unsigned char pede_TI[] = {0xA1, 0, 3, 9, 4};
-    //unsigned char pede_TR[] = {0xA2, 0, 3, 9, 4};
+    char pede_TI[] = {(char)0xA1, 0, 3, 9, 4};
+    char pede_TR[] = {(char)0xA2, 0, 3, 9, 4};
+
+    int count;
+
+    while(programa_pode_continuar) {
+        // Pede temperatura interna
+        count = write(uart0_filestream, &pede_TI[0], 5);
+
+        if(count < 0) {
+            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+        }
+        else {
+            atualizar_logs(window, "UART", FUNCIONANDO);
+        }
+
+        // Recebe temepratura interna
+        count = read(uart0_filestream, TI, 4);
+
+        if(count < 0) {
+            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+        }
+        else if(count == 0) {
+            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+        }
+        else {
+            atualizar_logs(window, "UART", FUNCIONANDO);
+        }
+
+        // Pede temperatura de referencia
+        count = write(uart0_filestream, &pede_TR[0], 5);
+
+        if(count < 0) {
+            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+        }
+        else {
+            atualizar_logs(window, "UART", FUNCIONANDO);
+        }
+
+        // Recebe temepratura referencia
+        count = read(uart0_filestream, TR, 4);
+
+        if(count < 0) {
+            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+        }
+        else if(count == 0) {
+            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+        }
+        else {
+            atualizar_logs(window, "UART", FUNCIONANDO);
+        }
+
+        usleep(100000);
+    }
+
+    close(uart0_filestream);
+    atualizar_logs(window, "UART", ENCERRADO);
+}
+
+void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *histerese) {
+
+}
+
+void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
+    struct bme280_dev dev;
+    struct identifier id;
+    const char path[] = "/dev/i2c-1";
+
+    if((id.fd = open(path, O_RDWR)) < 0) {
+        // Failed to open the i2c bus
+    }
+
+    id.dev_addr = SENSOR_EXTERNO;
+    if (ioctl(id.fd, I2C_SLAVE, id.dev_addr) < 0) {
+        // Failed to acquire bus access and/or talk to slave
+    }
+
+    dev.intf = BME280_I2C_INTF;
+    dev.intf_ptr = &id;
+
+    int rslt = bme280_init(&dev);
+    if(rslt != BME280_OK) {
+        // Failed to initialize the device
+    }
+
+    uint8_t settings_sel = 0;
+    struct bme280_data comp_data;
+
+    dev.settings.osr_h = BME280_OVERSAMPLING_1X;
+    dev.settings.osr_p = BME280_OVERSAMPLING_16X;
+    dev.settings.osr_t = BME280_OVERSAMPLING_2X;
+    dev.settings.filter = BME280_FILTER_COEFF_16;
+
+    settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
+
+    while(programa_pode_continuar) {
+        rslt = bme280_set_sensor_settings(settings_sel, &dev);
+        if(rslt != BME280_OK) {
+            // Failed to set sensor settings
+        }
+
+        rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
+        if (rslt != BME280_OK) {
+            // Failed to set sensor mode
+        }
+
+        rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
+        if (rslt != BME280_OK) {
+            // Failed to get sensor data
+        }
+
+        *TE = comp_data.temperature;
+
+        // LCD
+
+        usleep(100000);
+    }
 }

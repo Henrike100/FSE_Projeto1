@@ -9,7 +9,7 @@ float TR = 30.0;
 float TI = 30.0;
 float TE = 30.0;
 
-int histerese = -1;
+float histerese = -1.0f;
 
 int opcao_usuario = 0, opcao_anterior = 0;
 
@@ -39,14 +39,12 @@ int main(int argc, const char *argv[]) {
 
     atualizar_menu(entrada, opcao_usuario, opcao_anterior, histerese);
 
-    thread thread_lcd(atualizar_lcd, logs, &TI, &TE, &TR);
     thread thread_csv(gerar_log_csv, logs, &TI, &TE, &TR);
-    thread thread_uart(ler_UART, logs, &TI, &TR);
+    thread thread_uart(comunicar_uart, logs, &TI, &TR);
 
     thread thread_entrada(pegar_opcao, entrada, &opcao_usuario, &opcao_anterior, &histerese, &TE, &TR);
     thread thread_saida(mostrar_temperaturas, saida, &opcao_usuario, &histerese, &TI, &TE, &TR);
     
-    thread_lcd.join();
     thread_csv.join();
     thread_uart.join();
     thread_entrada.join();
