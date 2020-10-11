@@ -5,6 +5,8 @@
 #include <mutex>
 #include "constantes.hpp"
 
+extern mutex mtx_interface;
+
 void mostrar_opcoes(WINDOW *window);
 void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_anterior, const float histerese);
 void iniciar_saida(WINDOW *window, const int size_x);

@@ -20,5 +20,6 @@ const string status[] = {
     "Iniciando",
     "Funcionando",
     "Encerrado",
-    "Erro ao Abrir"
+    "Erro ao Abrir",
+    "Erro ao Escrever",
 };

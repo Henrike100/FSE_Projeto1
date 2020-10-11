@@ -5,13 +5,12 @@
 
 using namespace std;
 
-#define MAX_TENTATIVAS             10
-
 // status
 #define INICIANDO                   0
 #define FUNCIONANDO                 1
 #define ENCERRADO                   2
 #define ERRO_AO_ABRIR               3
+#define ERRO_AO_ESCREVER            4
 
 // dispositivos
 #define SENSOR_INTERNO              0

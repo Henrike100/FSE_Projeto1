@@ -2,9 +2,10 @@
 
 const char path[] = "/dev/i2c-1";
 
-int uart = INICIANDO;
-int csv  = INICIANDO;
-int i2c  = INICIANDO;
+mutex mtx_alarm_print; int contador_alarm_print = 0;
+mutex mtx_alarm_csv;   int contador_alarm_csv = 0;
+mutex mtx_alarm_uart;  int contador_alarm_uart = 0;
+mutex mtx_alarm_i2c;
 
 struct identifier {
     /* Variable to hold device address */
@@ -20,8 +21,35 @@ void signal_handler(int signum) {
     programa_pode_continuar = false;
 }
 
+void alarm_handler(int signum) {
+    contador_alarm_print++;
+    contador_alarm_csv++;
+    contador_alarm_uart++;
+
+    if(contador_alarm_print == 5) {
+        contador_alarm_print = 0;
+        mtx_alarm_print.unlock();
+    }
+
+    if(contador_alarm_csv == 20) {
+        contador_alarm_csv = 0;
+        mtx_alarm_csv.unlock();
+    }
+
+    if(contador_alarm_uart == 5) {
+        contador_alarm_uart = 0;
+        mtx_alarm_uart.unlock();
+    }
+
+    mtx_alarm_i2c.unlock();
+
+    ualarm(100000, 0);
+}
+
 void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, float *histerese, float *TE, float *TR) {
+    mtx_interface.lock();
     int last_line = getmaxy(window);
+    mtx_interface.unlock();
 
     do {
         if(*opcao_usuario != 3)
@@ -30,6 +58,7 @@ void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, float 
         bool invalid = false;
 
         do {
+            mtx_interface.lock();
             wmove(window, 11, 1);
             wclrtoeol(window);
             box(window, 0, 0);
@@ -40,6 +69,7 @@ void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, float 
             wrefresh(window);
 
             mvwprintw(window, 11, 1, "Escolha a opcao: ");
+            mtx_interface.unlock();
             mvwscanw(window, 11, 18, " %d", opcao_usuario);
 
             invalid = *opcao_usuario < 0 || *opcao_usuario > 3;
@@ -71,17 +101,20 @@ void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, float 
     programa_pode_continuar = false;
 }
 
-void mostrar_temperaturas(WINDOW *window, const int *opcao_usuario, const float *histerese,
-                          const float *TI, const float *TE, const float *TR) {
+void mostrar_temperaturas(WINDOW *window, const float *histerese, const float *TI, const float *TE, const float *TR) {
+    mtx_interface.lock();
     const int line_size = getmaxx(window);
+    mtx_interface.unlock();
     
     const string spaces(((line_size/3)-5)/2, ' ');
 
     while(programa_pode_continuar) {
-        if(*opcao_usuario == 0 or *histerese == -1) {
-            usleep(100000);
+        mtx_alarm_print.lock();
+
+        if(*histerese < 0)
             continue;
-        }
+
+        mtx_interface.lock();
         mvwprintw(window, 3, 1, "%s%.1f%s", spaces.c_str(), *TI, spaces.c_str());
         mvwvline(window, 3, line_size/3, 0, 1);
         mvwprintw(window, 3, line_size/3+1, "%s%.1f%s", spaces.c_str(), *TE, spaces.c_str());
@@ -90,44 +123,29 @@ void mostrar_temperaturas(WINDOW *window, const int *opcao_usuario, const float 
 
         box(window, 0, 0);
         wrefresh(window);
-        usleep(500000);
+        mtx_interface.unlock();
     }
 }
 
 void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
     FILE *file;
-    int tentativas = 0;
+    file = fopen("arquivo.csv", "w+");
 
-    do {
-        file = fopen("arquivo.csv", "w+");
-        if(file == NULL) {
-            tentativas++;
-        }
-        else
-            break;
-        
-        if(!programa_pode_continuar)
-            return;
-
-        usleep(500000);
-    } while (tentativas < MAX_TENTATIVAS);
-    
     if(file == NULL) {
-        csv = ERRO_AO_ABRIR;
         atualizar_logs(window, CSV, ERRO_AO_ABRIR);
         programa_pode_continuar = false;
         return;
     }
     
-    csv = FUNCIONANDO;
     atualizar_logs(window, CSV, FUNCIONANDO);
 
     fprintf(file, "Data/Hora, Temperatura Interna, Temperatura Externa, Temperatura de Referência\n");
 
     while(programa_pode_continuar) {
+        mtx_alarm_csv.lock();
         time_t now = time(0);
         tm *ltm = localtime(&now);
-        fprintf(file, "%02d/%02d/%d %02d:%02d:%02d, %.1f, %.1f, %.1f\n",
+        int num_escritos = fprintf(file, "%02d/%02d/%d %02d:%02d:%02d, %.1f, %.1f, %.1f\n",
             ltm->tm_mday,
             ltm->tm_mon+1,
             ltm->tm_year+1900,
@@ -136,39 +154,26 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
             ltm->tm_sec+1,
             *TI, *TE, *TR
         );
-        usleep(2000000);
+
+        if(num_escritos != 38)
+            atualizar_logs(window, CSV, ERRO_AO_ESCREVER);
     }
 
     fclose(file);
     atualizar_logs(window, CSV, ENCERRADO);
 }
 
-void comunicar_uart(WINDOW *window, float *TI, float *TR) {
+void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuario) {
     int uart0_filestream = -1;
-    int tentativas = 0;
-    do {
-        uart0_filestream = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);
-        if (uart0_filestream == -1) {
-            tentativas++;
-        }
-        else
-            break;
-        
-        if(!programa_pode_continuar)
-            return;
-
-        usleep(500000);
-    } while (tentativas < MAX_TENTATIVAS);
+    uart0_filestream = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);
     
     if (uart0_filestream == -1) {
-        uart = ERRO_AO_ABRIR;
         atualizar_logs(window, SENSOR_INTERNO, ERRO_AO_ABRIR);
         atualizar_logs(window, TEMPERATURA_REFERENCIA, ERRO_AO_ABRIR);
         //programa_pode_continuar = false;
         return;
     }
-    
-    uart = FUNCIONANDO;
+
     atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
     atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
 
@@ -187,6 +192,8 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR) {
     int count;
 
     while(programa_pode_continuar) {
+        mtx_alarm_uart.lock();
+        
         // Pede temperatura interna
         count = write(uart0_filestream, &pede_TI[0], 5);
 
@@ -210,30 +217,30 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR) {
             atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
         }
 
-        // Pede temperatura de referencia
-        count = write(uart0_filestream, &pede_TR[0], 5);
+        if(*opcao_usuario == 2) {
+            // Pede temperatura de referencia
+            count = write(uart0_filestream, &pede_TR[0], 5);
 
-        if(count < 0) {
-            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
-        }
-        else {
-            atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
-        }
+            if(count < 0) {
+                //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+            }
+            else {
+                atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
+            }
 
-        // Recebe temepratura referencia
-        count = read(uart0_filestream, TR, 4);
+            // Recebe temepratura referencia
+            count = read(uart0_filestream, TR, 4);
 
-        if(count < 0) {
-            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+            if(count < 0) {
+                //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+            }
+            else if(count == 0) {
+                //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+            }
+            else {
+                atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
+            }
         }
-        else if(count == 0) {
-            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
-        }
-        else {
-            atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
-        }
-
-        usleep(100000);
     }
 
     close(uart0_filestream);
@@ -248,24 +255,10 @@ void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *hi
 void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
     struct bme280_dev dev;
     struct identifier id;
-    int tentativas = 0;
-    do {
-        id.fd = open(path, O_RDWR);
-        if(id.fd < 0) {
-            tentativas++;
-        }
-        else
-            break;
-        
-        if(!programa_pode_continuar)
-            return;
-
-        usleep(500000);
-    } while (tentativas < MAX_TENTATIVAS);
+    id.fd = open(path, O_RDWR);
 
     if(id.fd < 0) {
         // Failed to open the i2c bus
-        i2c = ERRO_AO_ABRIR;
         atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
         atualizar_logs(window, LCD, ERRO_AO_ABRIR);
         //programa_pode_continuar = false;
@@ -296,6 +289,8 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
     settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
 
     while(programa_pode_continuar) {
+        mtx_alarm_i2c.lock();
+
         rslt = bme280_set_sensor_settings(settings_sel, &dev);
         if(rslt != BME280_OK) {
             // Failed to set sensor settings
@@ -314,7 +309,5 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
         *TE = comp_data.temperature;
 
         // LCD
-
-        usleep(100000);
     }
 }
