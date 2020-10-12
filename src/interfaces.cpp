@@ -106,6 +106,24 @@ void atualizar_logs(WINDOW *window, const int dispositivo, const int st) {
     mtx_interface.unlock();
 }
 
+void aviso_erro(WINDOW *window) {
+    mtx_interface.lock();
+    int segundos = 5;
+    
+    while(segundos) {
+        wmove(window, 21, 1);
+        wclrtoeol(window);
+        mvwprintw(window, 21, 1, "Nem todos os dispositivos conseguiram ser inicializados. Encerrando em %d...", segundos);
+        box(window, 0, 0);
+        wrefresh(window);
+        segundos--;
+
+        sleep(1);
+    }
+
+    mtx_interface.unlock();
+}
+
 void pegar_temperatura(WINDOW *window, const float TE, float *TR) {
     mtx_interface.lock();
     int last_line = getmaxy(window);

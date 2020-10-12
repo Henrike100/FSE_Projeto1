@@ -11,10 +11,19 @@
 #include <sys/types.h>
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
+#include <condition_variable>
 
 #include "interfaces.hpp"
 #include "constantes.hpp"
 #include "bme280.hpp"
+
+extern mutex mtx_main;
+extern mutex mtx_csv;
+extern mutex mtx_uart;
+
+extern condition_variable cv;
+extern int qtd_dispositivos_funcionando;
+extern int qtd_dispositivos_verificados;
 
 void signal_handler(int signum);
 void alarm_handler(int signum);

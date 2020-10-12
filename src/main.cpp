@@ -23,11 +23,12 @@ int main(int argc, const char *argv[]) {
     initscr();
 
     getmaxyx(stdscr, size_y, size_x);
+    const int min_colunas = 144, min_linhas = 28;
 
-    if(size_y < 25 or size_x < 144) {
+    if(size_y < min_linhas or size_x < min_colunas) {
         endwin();
         printf("Para uma melhor experiência, ajuste o tamanho do terminal para, no mínimo:\n");
-        printf("144 colunas e 25 linhas (144x25)\n");
+        printf("%d colunas e %d linhas (%dx%d)\n", min_colunas, min_linhas, min_colunas, min_linhas);
         printf("Atual: %dx%d\n", size_x, size_y);
         return 0;
     }
@@ -54,6 +55,28 @@ int main(int argc, const char *argv[]) {
     thread thread_csv(gerar_log_csv, logs, &TI, &TE, &TR);
     thread thread_uart(comunicar_uart, logs, &TI, &TR, &opcao_usuario);
     thread thread_i2c(usar_i2c, logs, &TI, &TE, &TR);
+
+    // Só continua depois de verificar todos os dispositivos
+    unique_lock<mutex> lck(mtx_main);
+    while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
+        cv.wait(lck);
+
+    // Se nem todos os dispositivos forem inicializados corretamente
+    if(qtd_dispositivos_funcionando != qtd_dispositivos_verificados) {
+        thread_csv.join();
+        thread_uart.join();
+        thread_i2c.join();
+
+        aviso_erro(logs);
+
+        delwin(entrada);
+        delwin(saida);
+        delwin(logs);
+
+        endwin();
+
+        return 0;
+    }
 
     ualarm(100000, 0);
 

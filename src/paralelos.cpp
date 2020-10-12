@@ -7,6 +7,15 @@ mutex mtx_alarm_csv;   int contador_alarm_csv = 0;
 mutex mtx_alarm_uart;  int contador_alarm_uart = 0;
 mutex mtx_alarm_i2c;
 
+condition_variable cv;
+mutex mtx_incrementa_variavel;
+int qtd_dispositivos_funcionando = 0;
+int qtd_dispositivos_verificados = 0;
+
+mutex mtx_main;
+mutex mtx_csv;
+mutex mtx_uart;
+
 struct identifier {
     /* Variable to hold device address */
     uint8_t dev_addr;
@@ -44,6 +53,25 @@ void alarm_handler(int signum) {
     mtx_alarm_i2c.unlock();
 
     ualarm(100000, 0);
+}
+
+void incrementar_disp_funcionando(bool funcionando) {
+    mtx_incrementa_variavel.lock();
+
+    qtd_dispositivos_verificados++;
+
+    if(funcionando)
+        qtd_dispositivos_funcionando++;
+
+    if(qtd_dispositivos_verificados == NUM_DISPOSITIVOS) {
+        if(qtd_dispositivos_funcionando != qtd_dispositivos_verificados) {
+            programa_pode_continuar = false;
+        }
+
+        cv.notify_all();
+    }
+    
+    mtx_incrementa_variavel.unlock();
 }
 
 void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, float *histerese, float *TE, float *TR) {
@@ -133,11 +161,23 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
 
     if(file == NULL) {
         atualizar_logs(window, CSV, ERRO_AO_ABRIR);
-        programa_pode_continuar = false;
+        incrementar_disp_funcionando(false);
         return;
     }
     
     atualizar_logs(window, CSV, FUNCIONANDO);
+    incrementar_disp_funcionando(true);
+
+    // Só continua depois de verificar todos os dispositivos
+    unique_lock<mutex> lck(mtx_csv);
+    while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
+        cv.wait(lck);
+    
+    if(qtd_dispositivos_funcionando != qtd_dispositivos_verificados) {
+        fclose(file);
+        atualizar_logs(window, CSV, ENCERRADO);
+        return;
+    }
 
     fprintf(file, "Data/Hora, Temperatura Interna, Temperatura Externa, Temperatura de Referência\n");
 
@@ -170,12 +210,25 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
     if (uart0_filestream == -1) {
         atualizar_logs(window, SENSOR_INTERNO, ERRO_AO_ABRIR);
         atualizar_logs(window, TEMPERATURA_REFERENCIA, ERRO_AO_ABRIR);
-        //programa_pode_continuar = false;
+        incrementar_disp_funcionando(false);
         return;
     }
 
     atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
     atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
+    incrementar_disp_funcionando(true);
+
+    // Só continua depois de verificar todos os dispositivos
+    unique_lock<mutex> lck(mtx_uart);
+    while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
+        cv.wait(lck);
+    
+    if(qtd_dispositivos_verificados != qtd_dispositivos_funcionando) {
+        close(uart0_filestream);
+        atualizar_logs(window, SENSOR_INTERNO, ENCERRADO);
+        atualizar_logs(window, TEMPERATURA_REFERENCIA, ENCERRADO);
+        return;
+    }
 
     struct termios options;
     tcgetattr(uart0_filestream, &options);
@@ -261,7 +314,6 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
         // Failed to open the i2c bus
         atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
         atualizar_logs(window, LCD, ERRO_AO_ABRIR);
-        //programa_pode_continuar = false;
         return;
     }
 
