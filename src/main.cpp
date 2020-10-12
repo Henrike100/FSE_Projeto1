@@ -55,6 +55,7 @@ int main(int argc, const char *argv[]) {
     thread thread_csv(gerar_log_csv, logs, &TI, &TE, &TR);
     thread thread_uart(comunicar_uart, logs, &TI, &TR, &opcao_usuario);
     thread thread_i2c(usar_i2c, logs, &TI, &TE, &TR);
+    thread thread_gpio(usar_gpio, logs, &TI, &TR, &histerese);
 
     // Só continua depois de verificar todos os dispositivos
     unique_lock<mutex> lck(mtx_main);
@@ -66,6 +67,7 @@ int main(int argc, const char *argv[]) {
         thread_csv.join();
         thread_uart.join();
         thread_i2c.join();
+        thread_gpio.join();
 
         aviso_erro(logs);
 
@@ -86,6 +88,7 @@ int main(int argc, const char *argv[]) {
     thread_csv.join();
     thread_uart.join();
     thread_i2c.join();
+    thread_gpio.join();
     thread_entrada.join();
     thread_saida.join();
 

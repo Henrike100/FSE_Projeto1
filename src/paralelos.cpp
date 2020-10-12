@@ -5,6 +5,7 @@ const char path[] = "/dev/i2c-1";
 mutex mtx_alarm_print; int contador_alarm_print = 0;
 mutex mtx_alarm_csv;   int contador_alarm_csv = 0;
 mutex mtx_alarm_uart;  int contador_alarm_uart = 0;
+mutex mtx_alarm_gpio;  int contador_alarm_gpio = 0;
 mutex mtx_alarm_i2c;
 
 condition_variable cv;
@@ -15,6 +16,8 @@ int qtd_dispositivos_verificados = 0;
 mutex mtx_main;
 mutex mtx_csv;
 mutex mtx_uart;
+mutex mtx_i2c;
+mutex mtx_gpio;
 
 struct identifier {
     /* Variable to hold device address */
@@ -34,6 +37,7 @@ void alarm_handler(int signum) {
     contador_alarm_print++;
     contador_alarm_csv++;
     contador_alarm_uart++;
+    contador_alarm_gpio++;
 
     if(contador_alarm_print == 5) {
         contador_alarm_print = 0;
@@ -48,6 +52,11 @@ void alarm_handler(int signum) {
     if(contador_alarm_uart == 5) {
         contador_alarm_uart = 0;
         mtx_alarm_uart.unlock();
+    }
+
+    if(contador_alarm_gpio == 5) {
+        contador_alarm_gpio = 0;
+        mtx_alarm_gpio.unlock();
     }
 
     mtx_alarm_i2c.unlock();
@@ -225,18 +234,6 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
     status_referencia = FUNCIONANDO;
     incrementar_disp_funcionando(true);
 
-    // Só continua depois de verificar todos os dispositivos
-    unique_lock<mutex> lck(mtx_uart);
-    while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
-        cv.wait(lck);
-    
-    if(qtd_dispositivos_verificados != qtd_dispositivos_funcionando) {
-        close(uart0_filestream);
-        atualizar_logs(window, SENSOR_INTERNO, ENCERRADO);
-        atualizar_logs(window, TEMPERATURA_REFERENCIA, ENCERRADO);
-        return;
-    }
-
     struct termios options;
     tcgetattr(uart0_filestream, &options);
     options.c_cflag = B115200 | CS8 | CLOCAL | CREAD;
@@ -251,6 +248,18 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
 
     int count;
     float temperatura_coletada;
+
+    // Só continua depois de verificar todos os dispositivos
+    unique_lock<mutex> lck(mtx_uart);
+    while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
+        cv.wait(lck);
+    
+    if(qtd_dispositivos_verificados != qtd_dispositivos_funcionando) {
+        close(uart0_filestream);
+        atualizar_logs(window, SENSOR_INTERNO, ENCERRADO);
+        atualizar_logs(window, TEMPERATURA_REFERENCIA, ENCERRADO);
+        return;
+    }
 
     while(programa_pode_continuar) {
         mtx_alarm_uart.lock();
@@ -343,24 +352,62 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
 }
 
 void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *histerese) {
+    int status = INICIANDO;
 
+    // tenta iniciar
+
+    // se ocorrer algum erro
+    if(true) {
+        atualizar_logs(window, RESISTOR, ERRO_AO_ABRIR);
+        atualizar_logs(window, VENTOINHA, ERRO_AO_ABRIR);
+        incrementar_disp_funcionando(false);
+        return;
+    }
+
+    atualizar_logs(window, RESISTOR, FUNCIONANDO);
+    atualizar_logs(window, VENTOINHA, FUNCIONANDO);
+    status = FUNCIONANDO;
+    incrementar_disp_funcionando(true);
+
+    // Só continua depois de verificar todos os dispositivos
+    unique_lock<mutex> lck(mtx_gpio);
+    while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
+        cv.wait(lck);
+    
+    if(qtd_dispositivos_verificados != qtd_dispositivos_funcionando) {
+        atualizar_logs(window, RESISTOR, ENCERRADO);
+        atualizar_logs(window, VENTOINHA, ENCERRADO);
+        return;
+    }
+
+    while(programa_pode_continuar) {
+        mtx_alarm_gpio.lock();
+    }
+
+    atualizar_logs(window, RESISTOR, ENCERRADO);
+    atualizar_logs(window, VENTOINHA, ENCERRADO);
 }
 
 void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
     struct bme280_dev dev;
     struct identifier id;
+    int status_sensor = INICIANDO, status_LCD = INICIANDO;
+
     id.fd = open(path, O_RDWR);
 
     if(id.fd < 0) {
         // Failed to open the i2c bus
         atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
-        atualizar_logs(window, LCD, ERRO_AO_ABRIR);
+        incrementar_disp_funcionando(false);
         return;
     }
 
     id.dev_addr = ENDERECO_SENSOR_EXTERNO;
     if (ioctl(id.fd, I2C_SLAVE, id.dev_addr) < 0) {
         // Failed to acquire bus access and/or talk to slave
+        atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
+        incrementar_disp_funcionando(false);
+        return;
     }
 
     dev.intf = BME280_I2C_INTF;
@@ -369,7 +416,13 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
     int rslt = bme280_init(&dev);
     if(rslt != BME280_OK) {
         // Failed to initialize the device
+        atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
+        incrementar_disp_funcionando(false);
+        return;
     }
+
+    atualizar_logs(window, SENSOR_EXTERNO, FUNCIONANDO);
+    status_sensor = FUNCIONANDO;
 
     uint8_t settings_sel = 0;
     struct bme280_data comp_data;
@@ -380,6 +433,22 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
     dev.settings.filter = BME280_FILTER_COEFF_16;
 
     settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
+
+    // Inicializar LCD
+
+    // se der algum erro, em algum lugar: incrementar_disp_funcionando(false);
+    // caso contrario: incrementar_disp_funcionando(true);
+
+    unique_lock<mutex> lck(mtx_i2c);
+    while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
+        cv.wait(lck);
+    
+    if(qtd_dispositivos_verificados != qtd_dispositivos_funcionando) {
+        close(id.fd);
+        atualizar_logs(window, SENSOR_EXTERNO, ENCERRADO);
+        atualizar_logs(window, LCD, ENCERRADO);
+        return;
+    }
 
     while(programa_pode_continuar) {
         mtx_alarm_i2c.lock();

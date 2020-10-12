@@ -18,8 +18,6 @@
 #include "bme280.hpp"
 
 extern mutex mtx_main;
-extern mutex mtx_csv;
-extern mutex mtx_uart;
 
 extern condition_variable cv;
 extern int qtd_dispositivos_funcionando;

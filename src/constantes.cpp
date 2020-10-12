@@ -20,7 +20,7 @@ const string status[] = {
     "Iniciando",
     "Funcionando",
     "Encerrado",
-    "Erro ao Abrir",
+    "Erro ao Iniciar",
     "Erro ao Escrever",
     "Erro ao Solicitar Temperatura",
     "Erro ao Ler Temperatura",

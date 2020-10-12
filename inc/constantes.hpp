@@ -5,7 +5,7 @@
 
 using namespace std;
 
-#define NUM_DISPOSITIVOS            2
+#define NUM_DISPOSITIVOS            4
 
 // status
 #define INICIANDO                   0
