@@ -155,9 +155,10 @@ void mostrar_temperaturas(WINDOW *window, const float *histerese, const float *T
     }
 }
 
-void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
+void gerar_log_csv(WINDOW *window, const float *TI, const float *TE, const float *TR) {
     FILE *file;
     file = fopen("arquivo.csv", "w+");
+    int status = INICIANDO;
 
     if(file == NULL) {
         atualizar_logs(window, CSV, ERRO_AO_ABRIR);
@@ -166,6 +167,7 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
     }
     
     atualizar_logs(window, CSV, FUNCIONANDO);
+    status = FUNCIONANDO;
     incrementar_disp_funcionando(true);
 
     // Só continua depois de verificar todos os dispositivos
@@ -195,8 +197,10 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
             *TI, *TE, *TR
         );
 
-        if(num_escritos != 38)
+        if(num_escritos != 38 && status != ERRO_AO_ESCREVER) {
             atualizar_logs(window, CSV, ERRO_AO_ESCREVER);
+            status = ERRO_AO_ESCREVER;
+        }
     }
 
     fclose(file);
@@ -206,6 +210,7 @@ void gerar_log_csv(WINDOW *window, float *TI, float *TE, float *TR) {
 void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuario) {
     int uart0_filestream = -1;
     uart0_filestream = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);
+    int status_interno = INICIANDO, status_referencia = INICIANDO;
     
     if (uart0_filestream == -1) {
         atualizar_logs(window, SENSOR_INTERNO, ERRO_AO_ABRIR);
@@ -216,6 +221,8 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
 
     atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
     atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
+    status_interno = FUNCIONANDO;
+    status_referencia = FUNCIONANDO;
     incrementar_disp_funcionando(true);
 
     // Só continua depois de verificar todos os dispositivos
@@ -243,6 +250,7 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
     char pede_TR[] = {(char)0xA2, 0, 3, 9, 4};
 
     int count;
+    float temperatura_coletada;
 
     while(programa_pode_continuar) {
         mtx_alarm_uart.lock();
@@ -251,47 +259,80 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
         count = write(uart0_filestream, &pede_TI[0], 5);
 
         if(count < 0) {
-            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+            if(status_interno != ERRO_AO_SOLICITAR_TEMP) {
+                atualizar_logs(window, SENSOR_INTERNO, ERRO_AO_SOLICITAR_TEMP);
+                status_interno = ERRO_AO_SOLICITAR_TEMP;
+            }
         }
         else {
-            atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
+            if(status_interno != FUNCIONANDO) {
+                atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
+                status_interno = FUNCIONANDO;
+            }
+
+            // Recebe temepratura interna
+            count = read(uart0_filestream, &temperatura_coletada, 4);
+
+            if(count < 0) {
+                if(status_interno != ERRO_AO_LER_TEMP) {
+                    atualizar_logs(window, SENSOR_INTERNO, ERRO_AO_LER_TEMP);
+                    status_interno = ERRO_AO_LER_TEMP;
+                }
+            }
+            else if(count == 0) {
+                if(status_interno != SEM_DADO_DISPONIVEL) {
+                    atualizar_logs(window, SENSOR_INTERNO, SEM_DADO_DISPONIVEL);
+                    status_interno = SEM_DADO_DISPONIVEL;
+                }
+            }
+            else {
+                *TI = temperatura_coletada;
+                if(status_interno != FUNCIONANDO) {
+                    atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
+                    status_interno = FUNCIONANDO;
+                }
+            }
         }
 
-        // Recebe temepratura interna
-        count = read(uart0_filestream, TI, 4);
-
-        if(count < 0) {
-            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
-        }
-        else if(count == 0) {
-            //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
-        }
-        else {
-            atualizar_logs(window, SENSOR_INTERNO, FUNCIONANDO);
-        }
-
+        // opcao 2 -> Pegar temperatura pelo potenciometro
         if(*opcao_usuario == 2) {
             // Pede temperatura de referencia
             count = write(uart0_filestream, &pede_TR[0], 5);
 
             if(count < 0) {
-                //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
+                if(status_referencia != ERRO_AO_SOLICITAR_TEMP) {
+                    atualizar_logs(window, TEMPERATURA_REFERENCIA, ERRO_AO_SOLICITAR_TEMP);
+                    status_referencia = ERRO_AO_SOLICITAR_TEMP;
+                }
             }
             else {
-                atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
-            }
+                if(status_referencia != FUNCIONANDO) {
+                    atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
+                    status_referencia = FUNCIONANDO;
+                }
 
-            // Recebe temepratura referencia
-            count = read(uart0_filestream, TR, 4);
+                // Recebe temepratura de referencia
+                count = read(uart0_filestream, &temperatura_coletada, 4);
 
-            if(count < 0) {
-                //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
-            }
-            else if(count == 0) {
-                //atualizar_logs(window, "UART", ERRO_DE_SOLICITACAO);
-            }
-            else {
-                atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
+                if(count < 0) {
+                    if(status_referencia != ERRO_AO_LER_TEMP) {
+                        atualizar_logs(window, TEMPERATURA_REFERENCIA, ERRO_AO_LER_TEMP);
+                        status_referencia = ERRO_AO_LER_TEMP;
+                    }
+                }
+                else if(count == 0) {
+                    if(status_referencia != SEM_DADO_DISPONIVEL) {
+                        atualizar_logs(window, TEMPERATURA_REFERENCIA, SEM_DADO_DISPONIVEL);
+                        status_referencia = SEM_DADO_DISPONIVEL;
+                    }
+                }
+                else {
+                    *TR = temperatura_coletada;
+                    if(status_referencia != FUNCIONANDO) {
+                        atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
+                        status_referencia = FUNCIONANDO;
+                    }
+                }
             }
         }
     }

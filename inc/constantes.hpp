@@ -13,6 +13,9 @@ using namespace std;
 #define ENCERRADO                   2
 #define ERRO_AO_ABRIR               3
 #define ERRO_AO_ESCREVER            4
+#define ERRO_AO_SOLICITAR_TEMP      5
+#define ERRO_AO_LER_TEMP            6
+#define SEM_DADO_DISPONIVEL         7
 
 // dispositivos
 #define SENSOR_INTERNO              0
