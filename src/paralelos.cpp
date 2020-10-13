@@ -336,11 +336,13 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
                     }
                 }
                 else {
-                    *TR = temperatura_coletada;
                     if(status_referencia != FUNCIONANDO) {
                         atualizar_logs(window, TEMPERATURA_REFERENCIA, FUNCIONANDO);
                         status_referencia = FUNCIONANDO;
                     }
+
+                    if(*opcao_usuario == 2)
+                        *TR = temperatura_coletada;
                 }
             }
         }
@@ -380,10 +382,38 @@ void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *hi
         return;
     }
 
+    bool resistor_desligado = true, ventoinha_desligada = true;
+    bcm2835_gpio_write(PINO_RESISTOR, 1);
+    bcm2835_gpio_write(PINO_VENTOINHA, 1);
+
     while(programa_pode_continuar) {
         mtx_alarm_gpio.lock();
+        double minimo = *TR - (*histerese/2), maximo = *TR + (*histerese/2);
+
+        if(*TI < minimo) {
+            if(resistor_desligado) {
+                resistor_desligado = false;
+                bcm2835_gpio_write(PINO_RESISTOR, 0);
+
+                ventoinha_desligada = true;
+                bcm2835_gpio_write(PINO_VENTOINHA, 1);
+            }
+        }
+        else if(*TI > maximo) {
+            if(ventoinha_desligada) {
+                ventoinha_desligada = false;
+                bcm2835_gpio_write(PINO_VENTOINHA, 0);
+
+                resistor_desligado = true;
+                bcm2835_gpio_write(PINO_RESISTOR, 1);
+            }
+        }
     }
 
+    bcm2835_gpio_write(PINO_RESISTOR, 1);
+    bcm2835_gpio_write(PINO_VENTOINHA, 1);
+
+    bcm2835_close();
     atualizar_logs(window, RESISTOR, ENCERRADO);
     atualizar_logs(window, VENTOINHA, ENCERRADO);
 }
