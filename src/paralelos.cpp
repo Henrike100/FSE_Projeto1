@@ -354,10 +354,7 @@ void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuar
 void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *histerese) {
     int status = INICIANDO;
 
-    // tenta iniciar
-
-    // se ocorrer algum erro
-    if(true) {
+    if (!bcm2835_init()) {
         atualizar_logs(window, RESISTOR, ERRO_AO_ABRIR);
         atualizar_logs(window, VENTOINHA, ERRO_AO_ABRIR);
         incrementar_disp_funcionando(false);
@@ -368,6 +365,9 @@ void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *hi
     atualizar_logs(window, VENTOINHA, FUNCIONANDO);
     status = FUNCIONANDO;
     incrementar_disp_funcionando(true);
+
+    bcm2835_gpio_fsel(PINO_RESISTOR, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(PINO_VENTOINHA, BCM2835_GPIO_FSEL_OUTP);
 
     // Só continua depois de verificar todos os dispositivos
     unique_lock<mutex> lck(mtx_gpio);

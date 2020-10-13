@@ -18,6 +18,7 @@
 #include "bme280.hpp"
 #include "utilidades.hpp"
 #include "lcd.hpp"
+#include "gpio.hpp"
 
 extern mutex mtx_main;
 
