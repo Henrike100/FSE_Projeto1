@@ -12,7 +12,7 @@ EXE = bin/bin
 all: clean $(EXE) 
     
 $(EXE): $(OBJ) 
-	$(CC) $(LDFLAGS) $(OBJDIR)/*.o -lncurses -o $@ 
+	$(CC) $(LDFLAGS) $(OBJDIR)/*.o -lncurses -lwiringPi -l bcm2835 -o $@ 
 
 $(OBJDIR)/%.o : $(SRCDIR)/%.cpp
 	@mkdir -p $(@D)

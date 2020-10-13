@@ -473,7 +473,7 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
     }
 
     int fd = wiringPiI2CSetup(I2C_ADDR);
-    lcd_init();
+    lcd_init(fd);
 
     unique_lock<mutex> lck(mtx_i2c);
     while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
@@ -508,11 +508,11 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
 
         pair<string, string> linha1_linha2 = transformar_temperaturas(TI, TE, TR);
 
-        ClrLcd();
-        lcdLoc(LINE1);
-        typeln(linha1_linha2.first.c_str());
-        lcdLoc(LINE2);
-        typeln(linha1_linha2.second.c_str());
+        ClrLcd(fd);
+        lcdLoc(fd, LINE1);
+        typeln(fd, linha1_linha2.first.c_str());
+        lcdLoc(fd, LINE2);
+        typeln(fd, linha1_linha2.second.c_str());
     }
 
     close(id.fd);
