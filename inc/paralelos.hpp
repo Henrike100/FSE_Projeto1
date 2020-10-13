@@ -16,6 +16,8 @@
 #include "interfaces.hpp"
 #include "constantes.hpp"
 #include "bme280.hpp"
+#include "utilidades.hpp"
+#include "lcd.hpp"
 
 extern mutex mtx_main;
 

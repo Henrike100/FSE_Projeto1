@@ -407,6 +407,7 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
         // Failed to acquire bus access and/or talk to slave
         atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
         incrementar_disp_funcionando(false);
+        close(id.fd);
         return;
     }
 
@@ -434,10 +435,15 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
 
     settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
 
-    // Inicializar LCD
+    if (wiringPiSetup() == -1) {
+        atualizar_logs(window, LCD, ERRO_AO_ABRIR);
+        incrementar_disp_funcionando(false);
+        close(id.fd);
+        return;
+    }
 
-    // se der algum erro, em algum lugar: incrementar_disp_funcionando(false);
-    // caso contrario: incrementar_disp_funcionando(true);
+    int fd = wiringPiI2CSetup(I2C_ADDR);
+    lcd_init();
 
     unique_lock<mutex> lck(mtx_i2c);
     while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
@@ -470,6 +476,16 @@ void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR) {
 
         *TE = comp_data.temperature;
 
-        // LCD
+        pair<string, string> linha1_linha2 = transformar_temperaturas(TI, TE, TR);
+
+        ClrLcd();
+        lcdLoc(LINE1);
+        typeln(linha1_linha2.first.c_str());
+        lcdLoc(LINE2);
+        typeln(linha1_linha2.second.c_str());
     }
+
+    close(id.fd);
+    atualizar_logs(window, SENSOR_EXTERNO, ENCERRADO);
+    atualizar_logs(window, LCD, ENCERRADO);
 }
