@@ -90,7 +90,10 @@ void atualizar_menu(WINDOW *window, const int opcao_usuario, const float histere
 
     mvwvline(window, 1, line_size/2, 0, 1);
 
-    mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: %.1f", histerese);
+    if(histerese > 0)
+        mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: %.1f", histerese);
+    else
+        mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: Não definido");
 
     wmove(window, last_line-2, 1);
     wclrtoeol(window);

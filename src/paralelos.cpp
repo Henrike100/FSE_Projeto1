@@ -411,12 +411,12 @@ void usar_gpio(WINDOW *window) {
         return;
     }
 
+    bcm2835_gpio_fsel(PINO_RESISTOR, BCM2835_GPIO_FSEL_OUTP);
+    bcm2835_gpio_fsel(PINO_VENTOINHA, BCM2835_GPIO_FSEL_OUTP);
+
     atualizar_logs(window, RESISTOR, FUNCIONANDO);
     atualizar_logs(window, VENTOINHA, FUNCIONANDO);
     incrementar_disp_funcionando(true);
-
-    bcm2835_gpio_fsel(PINO_RESISTOR, BCM2835_GPIO_FSEL_OUTP);
-    bcm2835_gpio_fsel(PINO_VENTOINHA, BCM2835_GPIO_FSEL_OUTP);
 
     // Só continua depois de verificar todos os dispositivos
     unique_lock<mutex> lck(mtx_gpio);
@@ -479,6 +479,25 @@ void usar_gpio(WINDOW *window) {
     atualizar_logs(window, VENTOINHA, ENCERRADO);
 }
 
+int8_t user_i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr) {
+    struct identifier id;
+
+    id = *((struct identifier *)intf_ptr);
+
+    write(id.fd, &reg_addr, 1);
+    read(id.fd, data, len);
+
+    return 0;
+}
+
+void user_delay_us(uint32_t period, void *intf_ptr) {
+    usleep(period);
+}
+
+int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr) {
+    return BME280_OK;
+}
+
 void usar_i2c(WINDOW *window) {
     struct bme280_dev dev;
     struct identifier id;
@@ -489,7 +508,7 @@ void usar_i2c(WINDOW *window) {
 
     if(id.fd < 0) {
         // Failed to open the i2c bus
-        atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
+        atualizar_logs(window, SENSOR_EXTERNO, ERRO_I2C_BUS);
         incrementar_disp_funcionando(false);
         return;
     }
@@ -497,19 +516,22 @@ void usar_i2c(WINDOW *window) {
     id.dev_addr = ENDERECO_SENSOR_EXTERNO;
     if (ioctl(id.fd, I2C_SLAVE, id.dev_addr) < 0) {
         // Failed to acquire bus access and/or talk to slave
-        atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
+        atualizar_logs(window, SENSOR_EXTERNO, ERRO_I2C_BUS_ACESSO);
         incrementar_disp_funcionando(false);
         close(id.fd);
         return;
     }
 
     dev.intf = BME280_I2C_INTF;
+    dev.read = user_i2c_read;
+    dev.write = user_i2c_write;
+    dev.delay_us = user_delay_us;
     dev.intf_ptr = &id;
 
     int rslt = bme280_init(&dev);
     if(rslt != BME280_OK) {
         // Failed to initialize the device
-        atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
+        atualizar_logs(window, SENSOR_EXTERNO, ERRO_I2C_INICIAR_DISP);
         incrementar_disp_funcionando(false);
         return;
     }

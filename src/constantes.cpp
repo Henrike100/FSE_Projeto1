@@ -27,5 +27,8 @@ const string status[] = {
     "Sem Dado Disponível",
     "Funcionando (ligado)",
     "Funcionando (ligado)",
-    "Erro no Sensor Mode"
+    "Erro no Sensor Mode",
+    "Erro ao abrir I2C bus",
+    "Erro ao adquirir acesso",
+    "Erro ao incializar dispositivo",
 };

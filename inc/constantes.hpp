@@ -35,6 +35,9 @@ using namespace std;
 #define FUNCIONANDO_LIGADO          8
 #define FUNCIONANDO_DESLIGADO       9
 #define ERRO_SENSOR_MODE           10
+#define ERRO_I2C_BUS               11
+#define ERRO_I2C_BUS_ACESSO        12
+#define ERRO_I2C_INICIAR_DISP      13
 
 // dispositivos
 #define SENSOR_INTERNO              0

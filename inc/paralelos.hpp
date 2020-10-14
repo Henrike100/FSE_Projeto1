@@ -12,6 +12,7 @@
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <condition_variable>
+#include <cstring>
 
 #include "interfaces.hpp"
 #include "constantes.hpp"
