@@ -4,14 +4,6 @@
 
 using namespace std;
 
-float TR;
-float TI;
-float TE;
-
-float histerese = -1.0f;
-
-int opcao_usuario = 0;
-
 int main(int argc, const char *argv[]) {
     signal(SIGHUP, signal_handler);
     signal(SIGINT, signal_handler);

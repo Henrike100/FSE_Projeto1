@@ -258,7 +258,7 @@ void gerar_log_csv(WINDOW *window) {
     atualizar_logs(window, CSV, ENCERRADO);
 }
 
-void comunicar_uart(WINDOW *window, float TI, float TR, const int opcao_usuario) {
+void comunicar_uart(WINDOW *window) {
     int uart0_filestream = -1;
     uart0_filestream = open("/dev/serial0", O_RDWR | O_NOCTTY | O_NDELAY);
     int status_interno = INICIANDO, status_referencia = INICIANDO;
@@ -403,7 +403,7 @@ void comunicar_uart(WINDOW *window, float TI, float TR, const int opcao_usuario)
     atualizar_logs(window, TEMPERATURA_REFERENCIA, ENCERRADO);
 }
 
-void usar_gpio(WINDOW *window, const float TI, const float TR, const float histerese) {
+void usar_gpio(WINDOW *window) {
     if (!bcm2835_init()) {
         atualizar_logs(window, RESISTOR, ERRO_AO_ABRIR);
         atualizar_logs(window, VENTOINHA, ERRO_AO_ABRIR);
@@ -479,7 +479,7 @@ void usar_gpio(WINDOW *window, const float TI, const float TR, const float histe
     atualizar_logs(window, VENTOINHA, ENCERRADO);
 }
 
-void usar_i2c(WINDOW *window, const float TI, float TE, const float TR) {
+void usar_i2c(WINDOW *window) {
     struct bme280_dev dev;
     struct identifier id;
     const char path[] = "/dev/i2c-1";
@@ -514,6 +514,16 @@ void usar_i2c(WINDOW *window, const float TI, float TE, const float TR) {
         return;
     }
 
+    uint8_t settings_sel = 0;
+    struct bme280_data comp_data;
+
+    dev.settings.osr_h = BME280_OVERSAMPLING_1X;
+    dev.settings.osr_p = BME280_OVERSAMPLING_16X;
+    dev.settings.osr_t = BME280_OVERSAMPLING_2X;
+    dev.settings.filter = BME280_FILTER_COEFF_16;
+
+    settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
+
     rslt = bme280_set_sensor_settings(settings_sel, &dev);
     if(rslt != BME280_OK) {
         // Failed to set sensor settings
@@ -524,16 +534,6 @@ void usar_i2c(WINDOW *window, const float TI, float TE, const float TR) {
 
     atualizar_logs(window, SENSOR_EXTERNO, FUNCIONANDO);
     status_sensor = FUNCIONANDO;
-
-    uint8_t settings_sel = 0;
-    struct bme280_data comp_data;
-
-    dev.settings.osr_h = BME280_OVERSAMPLING_1X;
-    dev.settings.osr_p = BME280_OVERSAMPLING_16X;
-    dev.settings.osr_t = BME280_OVERSAMPLING_2X;
-    dev.settings.filter = BME280_FILTER_COEFF_16;
-
-    settings_sel = BME280_OSR_PRESS_SEL | BME280_OSR_TEMP_SEL | BME280_OSR_HUM_SEL | BME280_FILTER_SEL;
 
     if (wiringPiSetup() == -1) {
         atualizar_logs(window, LCD, ERRO_AO_ABRIR);
@@ -601,6 +601,11 @@ void usar_i2c(WINDOW *window, const float TI, float TE, const float TR) {
         typeln(fd, linha1_linha2.first.c_str());
         lcdLoc(fd, LINE2);
         typeln(fd, linha1_linha2.second.c_str());
+
+        if(status_LCD != FUNCIONANDO) {
+            status_LCD = FUNCIONANDO;
+            atualizar_logs(window, LCD, FUNCIONANDO);
+        }
     }
 
     close(id.fd);
