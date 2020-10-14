@@ -24,5 +24,7 @@ const string status[] = {
     "Erro ao Escrever",
     "Erro ao Solicitar Temperatura",
     "Erro ao Ler Temperatura",
-    "Sem Dado Disponível"
+    "Sem Dado Disponível",
+    "Funcionando (ligado)",
+    "Funcionando (ligado)"
 };

@@ -4,13 +4,13 @@
 
 using namespace std;
 
-float TR = 30.0;
-float TI = 30.0;
-float TE = 30.0;
+float TR;
+float TI;
+float TE;
 
 float histerese = -1.0f;
 
-int opcao_usuario = 0, opcao_anterior = 0;
+int opcao_usuario = 0;
 
 int main(int argc, const char *argv[]) {
     signal(SIGHUP, signal_handler);
@@ -46,16 +46,14 @@ int main(int argc, const char *argv[]) {
     wrefresh(saida);
     wrefresh(logs);
 
-    mostrar_opcoes(entrada);
+    iniciar_entrada(entrada);
     iniciar_saida(saida, size_x);
     iniciar_logs(logs);
 
-    atualizar_menu(entrada, opcao_usuario, opcao_anterior, histerese);
-
-    thread thread_csv(gerar_log_csv, logs, &TI, &TE, &TR);
-    thread thread_uart(comunicar_uart, logs, &TI, &TR, &opcao_usuario);
-    thread thread_i2c(usar_i2c, logs, &TI, &TE, &TR);
-    thread thread_gpio(usar_gpio, logs, &TI, &TR, &histerese);
+    thread thread_csv(gerar_log_csv, logs);
+    thread thread_uart(comunicar_uart, logs);
+    thread thread_i2c(usar_i2c, logs);
+    thread thread_gpio(usar_gpio, logs);
 
     // Só continua depois de verificar todos os dispositivos
     unique_lock<mutex> lck(mtx_main);
@@ -69,7 +67,7 @@ int main(int argc, const char *argv[]) {
         thread_i2c.join();
         thread_gpio.join();
 
-        aviso_erro(logs);
+        aviso_encerramento(logs, ENCERRAMENTO_COM_ERRO_INICIO);
 
         delwin(entrada);
         delwin(saida);
@@ -82,8 +80,8 @@ int main(int argc, const char *argv[]) {
 
     ualarm(100000, 0);
 
-    thread thread_entrada(pegar_opcao, entrada, &opcao_usuario, &opcao_anterior, &histerese, &TE, &TR);
-    thread thread_saida(mostrar_temperaturas, saida, &histerese, &TI, &TE, &TR);
+    thread thread_entrada(pegar_opcao, entrada);
+    thread thread_saida(mostrar_temperaturas, saida);
     
     thread_csv.join();
     thread_uart.join();
@@ -91,6 +89,8 @@ int main(int argc, const char *argv[]) {
     thread_gpio.join();
     thread_entrada.join();
     thread_saida.join();
+
+    aviso_encerramento(logs, status_programa);
 
     delwin(entrada);
     delwin(saida);

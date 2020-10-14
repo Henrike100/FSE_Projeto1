@@ -21,18 +21,18 @@
 #include "gpio.hpp"
 
 extern mutex mtx_main;
-
 extern condition_variable cv;
 extern int qtd_dispositivos_funcionando;
 extern int qtd_dispositivos_verificados;
+extern int status_programa;
 
 void signal_handler(int signum);
 void alarm_handler(int signum);
-void pegar_opcao(WINDOW *window, int *opcao_usuario, int *opcao_anterior, float *histerese, float *TE, float *TR);
-void mostrar_temperaturas(WINDOW *window, const float *histerese, const float *TI, const float *TE, const float *TR);
-void gerar_log_csv(WINDOW *window, const float *TI, const float *TE, const float *TR);
-void comunicar_uart(WINDOW *window, float *TI, float *TR, const int *opcao_usuario);
-void usar_gpio(WINDOW *window, const float *TI, const float *TR, const float *histerese);
-void usar_i2c(WINDOW *window, const float *TI, float *TE, const float *TR);
+void pegar_opcao(WINDOW *window);
+void mostrar_temperaturas(WINDOW *window);
+void gerar_log_csv(WINDOW *window);
+void comunicar_uart(WINDOW *window);
+void usar_gpio(WINDOW *window);
+void usar_i2c(WINDOW *window);
 
 #endif // PARALELOS_HPP

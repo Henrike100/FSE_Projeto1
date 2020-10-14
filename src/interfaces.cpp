@@ -1,10 +1,19 @@
 #include "interfaces.hpp"
 
 mutex mtx_interface;
+mutex mtx_TR;
+mutex mtx_TI;
+mutex mtx_TE;
+mutex mtx_opcao;
+mutex mtx_histerese;
 
-void mostrar_opcoes(WINDOW *window) {
+void iniciar_entrada(WINDOW *window) {
     mtx_interface.lock();
     int line_size = getmaxx(window);
+
+    mvwprintw(window, 1, 1, " Entrada atual: Nenhuma");
+    mvwvline(window, 1, line_size/2, 0, 1);
+    mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: Não definido");
 
     mvwhline(window, 2, 0, 0, line_size);
     mvwprintw(window, 3, 1, "Como deseja definir a temperatura?");
@@ -14,34 +23,6 @@ void mostrar_opcoes(WINDOW *window) {
     mvwprintw(window, 7, 1, "3. Definir Histerese");
     mvwprintw(window, 9, 1, "0. Sair");
 
-    wrefresh(window);
-    mtx_interface.unlock();
-}
-
-void atualizar_menu(WINDOW *window, const int opcao_usuario, const int opcao_anterior, const float histerese) {
-    mtx_interface.lock();
-    int line_size = getmaxx(window);
-    int last_line = getmaxy(window);
-
-    wmove(window, 1, 1);
-    wclrtoeol(window);
-
-    // Histerese não é uma opcao de entrada, portanto...
-    if(opcao_usuario != 3) // se a opção escolhida não for 'Definir histerese', atualiza 'Entrada atual'
-        mvwprintw(window, 1, 1, " Entrada atual: %s", opcoes[opcao_usuario].c_str());
-    else // cao contrário, a opção que vale é a anterior
-        mvwprintw(window, 1, 1, " Entrada atual: %s", opcoes[opcao_anterior].c_str());
-
-    mvwvline(window, 1, line_size/2, 0, 1);
-
-    if(histerese == -1)
-        mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: Não definido");
-    else
-        mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: %.1f", histerese);
-
-    wmove(window, last_line-2, 1);
-    wclrtoeol(window);
-    box(window, 0, 0);
     wrefresh(window);
     mtx_interface.unlock();
 }
@@ -92,6 +73,32 @@ void iniciar_logs(WINDOW *window) {
     mtx_interface.unlock();
 }
 
+void atualizar_menu(WINDOW *window, const int opcao_usuario, const float histerese) {
+    mtx_interface.lock();
+    int line_size = getmaxx(window);
+    int last_line = getmaxy(window);
+
+    if(opcao_usuario == 1 or opcao_usuario == 2) {
+        wmove(window, 1, 1);
+        wclrtoeol(window);
+        mvwprintw(window, 1, 1, " Entrada atual: %s", opcoes[opcao_usuario].c_str());
+    }
+    else {
+        wmove(window, 1, line_size/2);
+        wclrtoeol(window);
+    }
+
+    mvwvline(window, 1, line_size/2, 0, 1);
+
+    mvwprintw(window, 1, (line_size/2)+1, " Valor da Histerese: %.1f", histerese);
+
+    wmove(window, last_line-2, 1);
+    wclrtoeol(window);
+    box(window, 0, 0);
+    wrefresh(window);
+    mtx_interface.unlock();
+}
+
 void atualizar_logs(WINDOW *window, const int dispositivo, const int st) {
     mtx_interface.lock();
     const int line_size = getmaxx(window);
@@ -106,18 +113,52 @@ void atualizar_logs(WINDOW *window, const int dispositivo, const int st) {
     mtx_interface.unlock();
 }
 
-void aviso_erro(WINDOW *window) {
+void aviso_encerramento(WINDOW *logs, const int status) {
     mtx_interface.lock();
-    int segundos = 5;
-    
-    while(segundos) {
-        wmove(window, 21, 1);
-        wclrtoeol(window);
-        mvwprintw(window, 21, 1, "Nem todos os dispositivos conseguiram ser inicializados. Encerrando em %d...", segundos);
-        box(window, 0, 0);
-        wrefresh(window);
-        segundos--;
 
+    if(status == ENCERRAMENTO_VIA_USER) {
+        wmove(logs, 21, 1);
+        wclrtoeol(logs);
+        mvwprintw(logs, 21, 1, "Voce escolheu encerrar o programa. Encerrando dispositivos...");
+        box(logs, 0, 0);
+        wrefresh(logs);
+
+        mtx_interface.unlock();
+        return;
+    }
+    else if(ENCERRAMENTO_VIA_SIGNAL) {
+        wmove(logs, 21, 1);
+        wclrtoeol(logs);
+        mvwprintw(logs, 21, 1, "O programa recebeu um sinal para encerrar a execucao.");
+        mvwprintw(logs, 22, 1, "Assim que voce enviar algum dado, o programa sera encerrado.");
+        box(logs, 0, 0);
+        wrefresh(logs);
+
+        mtx_interface.unlock();
+        return;
+    }
+
+    int segundos = 5;
+
+    while(segundos) {
+        wmove(logs, 21, 1);
+        wclrtoeol(logs);
+
+        switch (status) {
+        case ENCERRAMENTO_COM_ERRO_INICIO:
+            mvwprintw(logs, 21, 1, "Nem todos os dispositivos conseguiram ser inicializados. Encerrando em %d...", segundos);
+            break;
+        case ENCERRAMENTO_COM_ERRO_EXEC:
+            mvwprintw(logs, 21, 1, "Um dos dispositivos apresentou erro durante a execucao. Encerrando em %d...", segundos);
+            break;
+        default:
+            mvwprintw(logs, 21, 1, "O programa foi encerrado por uma razao desconhecida. Encerrando em %d...", segundos);
+            break;
+        }
+
+        box(logs, 0, 0);
+        wrefresh(logs);
+        segundos--;
         sleep(1);
     }
 
@@ -149,10 +190,12 @@ void pegar_temperatura(WINDOW *window, const float TE, float *TR) {
         invalid = temperatura < TE;
     } while (invalid);
 
+    mtx_TR.lock();
     *TR = temperatura;
+    mtx_TR.unlock();
 }
 
-void pegar_histerese(WINDOW *window, const int opcao_usuario, const int opcao_anterior, float *histerese) {
+void pegar_histerese(WINDOW *window, const int opcao_usuario, float *histerese) {
     mtx_interface.lock();
     int last_line = getmaxy(window);
     mtx_interface.unlock();
@@ -177,7 +220,9 @@ void pegar_histerese(WINDOW *window, const int opcao_usuario, const int opcao_an
         invalid = !(temp > 0.0f);
     } while (invalid);
 
+    mtx_histerese.lock();
     *histerese = temp;
+    mtx_histerese.unlock();
 
-    atualizar_menu(window, opcao_usuario, opcao_anterior, *histerese);
+    atualizar_menu(window, opcao_usuario, *histerese);
 }
