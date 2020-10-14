@@ -34,6 +34,7 @@ using namespace std;
 #define SEM_DADO_DISPONIVEL         7
 #define FUNCIONANDO_LIGADO          8
 #define FUNCIONANDO_DESLIGADO       9
+#define ERRO_SENSOR_MODE           10
 
 // dispositivos
 #define SENSOR_INTERNO              0

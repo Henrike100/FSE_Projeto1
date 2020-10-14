@@ -65,6 +65,7 @@ void alarm_handler(int signum) {
         mtx_alarm_gpio.unlock();
     }
 
+    // usa i2c a cada 100ms
     mtx_alarm_i2c.unlock();
 
     ualarm(100000, 0);
@@ -513,6 +514,14 @@ void usar_i2c(WINDOW *window, const float TI, float TE, const float TR) {
         return;
     }
 
+    rslt = bme280_set_sensor_settings(settings_sel, &dev);
+    if(rslt != BME280_OK) {
+        // Failed to set sensor settings
+        atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_ABRIR);
+        incrementar_disp_funcionando(false);
+        return;
+    }
+
     atualizar_logs(window, SENSOR_EXTERNO, FUNCIONANDO);
     status_sensor = FUNCIONANDO;
 
@@ -536,6 +545,10 @@ void usar_i2c(WINDOW *window, const float TI, float TE, const float TR) {
     int fd = wiringPiI2CSetup(I2C_ADDR);
     lcd_init(fd);
 
+    atualizar_logs(window, LCD, FUNCIONANDO);
+    incrementar_disp_funcionando(true);
+    status_LCD = FUNCIONANDO;
+
     unique_lock<mutex> lck(mtx_i2c);
     while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
         cv.wait(lck);
@@ -553,24 +566,33 @@ void usar_i2c(WINDOW *window, const float TI, float TE, const float TR) {
     while(status_programa == EM_EXECUCAO) {
         mtx_alarm_i2c.lock();
 
-        rslt = bme280_set_sensor_settings(settings_sel, &dev);
-        if(rslt != BME280_OK) {
-            // Failed to set sensor settings
-        }
-
         rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
         if (rslt != BME280_OK) {
             // Failed to set sensor mode
+            if(status_sensor != ERRO_SENSOR_MODE) {
+                atualizar_logs(window, SENSOR_EXTERNO, ERRO_SENSOR_MODE);
+                status_sensor = ERRO_SENSOR_MODE;
+            }
         }
-
-        rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
-        if (rslt != BME280_OK) {
-            // Failed to get sensor data
+        else {
+            rslt = bme280_get_sensor_data(BME280_ALL, &comp_data, &dev);
+            if (rslt != BME280_OK) {
+                // Failed to get sensor data
+                if(status_sensor != ERRO_AO_LER_TEMP) {
+                    atualizar_logs(window, SENSOR_EXTERNO, ERRO_AO_LER_TEMP);
+                    status_sensor = ERRO_AO_LER_TEMP;
+                }
+            }
+            else {
+                mtx_TE.lock();
+                TE = comp_data.temperature;
+                mtx_TE.unlock();
+                if(status_sensor != FUNCIONANDO) {
+                    atualizar_logs(window, SENSOR_EXTERNO, FUNCIONANDO);
+                    status_sensor = FUNCIONANDO;
+                }
+            }
         }
-
-        mtx_TE.lock();
-        TE = comp_data.temperature;
-        mtx_TE.unlock();
 
         pair<string, string> linha1_linha2 = transformar_temperaturas(TI, TE, TR);
 

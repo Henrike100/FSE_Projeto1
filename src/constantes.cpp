@@ -26,5 +26,6 @@ const string status[] = {
     "Erro ao Ler Temperatura",
     "Sem Dado Disponível",
     "Funcionando (ligado)",
-    "Funcionando (ligado)"
+    "Funcionando (ligado)",
+    "Erro no Sensor Mode"
 };
