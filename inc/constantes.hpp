@@ -6,7 +6,7 @@
 using namespace std;
 
 // Número total de dispositivos/conexões
-#define NUM_DISPOSITIVOS            4
+#define NUM_DISPOSITIVOS            5
 
 /*** Status do Programa ***/
 

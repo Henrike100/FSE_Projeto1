@@ -1,10 +1,11 @@
 #include "paralelos.hpp"
 
-mutex mtx_alarm_print; int contador_alarm_print = 0;
-mutex mtx_alarm_csv;   int contador_alarm_csv = 0;
-mutex mtx_alarm_uart;  int contador_alarm_uart = 0;
-mutex mtx_alarm_gpio;  int contador_alarm_gpio = 0;
-mutex mtx_alarm_i2c;
+int contador_alarm_print = 0;
+int contador_alarm_csv = 0;
+int contador_alarm_uart = 0;
+int contador_alarm_gpio = 0;
+int contador_alarm_LCD = 0;
+int contador_alarm_SE = 0;
 
 condition_variable cv;
 mutex mtx_incrementa_variavel;
@@ -14,22 +15,18 @@ int qtd_dispositivos_verificados = 0;
 mutex mtx_main;
 mutex mtx_csv;
 mutex mtx_uart;
-mutex mtx_i2c;
+mutex mtx_SE;
 mutex mtx_gpio;
 mutex mtx_print;
+mutex mtx_LCD;
 
 int status_programa = -1;
 
-float TR;
+float TR = -1.0f;
 float TI;
 float TE;
 float histerese = -1.0f;
 int opcao_usuario = 0;
-
-struct identifier {
-    uint8_t dev_addr;
-    int8_t fd;
-};
 
 void signal_handler(int signum) {
     status_programa = ENCERRAMENTO_VIA_SIGNAL;
@@ -40,33 +37,10 @@ void alarm_handler(int signum) {
     contador_alarm_csv++;
     contador_alarm_uart++;
     contador_alarm_gpio++;
+    contador_alarm_LCD++;
+    contador_alarm_SE++;
 
-    // printa a cada 500ms
-    if(contador_alarm_print == 5) {
-        contador_alarm_print = 0;
-        mtx_alarm_print.unlock();
-    }
-
-    // escreve no CSV a cada 2000ms
-    if(contador_alarm_csv == 20) {
-        contador_alarm_csv = 0;
-        mtx_alarm_csv.unlock();
-    }
-
-    // lê UART a cada 500ms
-    if(contador_alarm_uart == 5) {
-        contador_alarm_uart = 0;
-        mtx_alarm_uart.unlock();
-    }
-
-    // verifica GPIO a cada 500ms
-    if(contador_alarm_gpio == 5) {
-        contador_alarm_gpio = 0;
-        mtx_alarm_gpio.unlock();
-    }
-
-    // usa i2c a cada 100ms
-    mtx_alarm_i2c.unlock();
+    cv.notify_all();
 
     ualarm(100000, 0);
 }
@@ -133,6 +107,7 @@ void pegar_opcao(WINDOW *window) {
         switch (opcao_usuario) {
         case 0:
             status_programa = ENCERRAMENTO_VIA_USER;
+            break;
         case 1:
             pegar_temperatura(window, TE, &TR);
             break;
@@ -166,11 +141,11 @@ void mostrar_temperaturas(WINDOW *window) {
         return;
     }
 
-    while(status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO)
-        cv.wait(lck);
-
-    while(status_programa == EM_EXECUCAO) {
-        mtx_alarm_print.lock();
+    while(status_programa == EM_EXECUCAO or status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO) {
+        while(contador_alarm_print < 5)
+            cv.wait(lck);
+        
+        contador_alarm_print = 0;
 
         mtx_interface.lock();
 
@@ -186,9 +161,11 @@ void mostrar_temperaturas(WINDOW *window) {
 
         mvwvline(window, 3, 2*line_size/3, 0, 1);
 
-        mtx_TR.lock();
-        mvwprintw(window, 3, 2*line_size/3+1, "%s%.1f%s", spaces.c_str(), TR, spaces.c_str());
-        mtx_TR.unlock();
+        if(TR > 0) {
+            mtx_TR.lock();
+            mvwprintw(window, 3, 2*line_size/3+1, "%s%.1f%s", spaces.c_str(), TR, spaces.c_str());
+            mtx_TR.unlock();
+        }
 
         box(window, 0, 0);
         wrefresh(window);
@@ -228,7 +205,11 @@ void gerar_log_csv(WINDOW *window) {
         cv.wait(lck);
 
     while(status_programa == EM_EXECUCAO) {
-        mtx_alarm_csv.lock();
+        while(contador_alarm_csv < 20)
+            cv.wait(lck);
+        
+        contador_alarm_csv = 0;
+
         time_t now = time(0);
         tm *ltm = localtime(&now);
 
@@ -248,7 +229,8 @@ void gerar_log_csv(WINDOW *window) {
         mtx_TE.unlock();
         mtx_TR.unlock();
 
-        if(num_escritos != 38 && status != ERRO_AO_ESCREVER) {
+        //if(num_escritos != 38 && status != ERRO_AO_ESCREVER) {
+        if(num_escritos < 0 && status != ERRO_AO_ESCREVER) {
             atualizar_logs(window, CSV, ERRO_AO_ESCREVER);
             status = ERRO_AO_ESCREVER;
         }
@@ -303,11 +285,11 @@ void comunicar_uart(WINDOW *window) {
         return;
     }
 
-    while(status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO)
-        cv.wait(lck);
-
-    while(status_programa == EM_EXECUCAO) {
-        mtx_alarm_uart.lock();
+    while(status_programa == EM_EXECUCAO or status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO) {
+        while(contador_alarm_uart < 5)
+            cv.wait(lck);
+        
+        contador_alarm_uart = 0;
         
         // Pede temperatura interna
         count = write(uart0_filestream, &pede_TI[0], 5);
@@ -439,7 +421,10 @@ void usar_gpio(WINDOW *window) {
         cv.wait(lck);
 
     while(status_programa == EM_EXECUCAO) {
-        mtx_alarm_gpio.lock();
+        while(contador_alarm_gpio < 5)
+            cv.wait(lck);
+        
+        contador_alarm_gpio = 0;
 
         mtx_TR.lock(); mtx_histerese.lock();
         double minimo = TR - (histerese/2), maximo = TR + (histerese/2);
@@ -479,30 +464,62 @@ void usar_gpio(WINDOW *window) {
     atualizar_logs(window, VENTOINHA, ENCERRADO);
 }
 
-int8_t user_i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr) {
-    struct identifier id;
+void usar_LCD(WINDOW *window) {
+    int status = INICIANDO;
 
-    id = *((struct identifier *)intf_ptr);
+    if (wiringPiSetup() == -1) {
+        atualizar_logs(window, LCD, ERRO_AO_ABRIR);
+        incrementar_disp_funcionando(false);
+        close(id.fd);
+        return;
+    }
 
-    write(id.fd, &reg_addr, 1);
-    read(id.fd, data, len);
+    int fd = wiringPiI2CSetup(I2C_ADDR);
+    lcd_init(fd);
 
-    return 0;
+    atualizar_logs(window, LCD, FUNCIONANDO);
+    incrementar_disp_funcionando(true);
+    status = FUNCIONANDO;
+
+    // Só continua depois de verificar todos os dispositivos
+    unique_lock<mutex> lck(mtx_gpio);
+    while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
+        cv.wait(lck);
+    
+    if(qtd_dispositivos_verificados != qtd_dispositivos_funcionando) {
+        atualizar_logs(window, LCD, ENCERRADO);
+        return;
+    }
+
+    while(status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO)
+        cv.wait(lck);
+
+    while(status_programa == EM_EXECUCAO) {
+        while(contador_alarm_LCD < 5)
+            cv.wait(lck);
+        
+        contador_alarm_LCD = 0;
+
+        pair<string, string> linha1_linha2 = transformar_temperaturas(TI, TE, TR);
+
+        ClrLcd(fd);
+        lcdLoc(fd, LINE1);
+        typeln(fd, linha1_linha2.first.c_str());
+        lcdLoc(fd, LINE2);
+        typeln(fd, linha1_linha2.second.c_str());
+
+        if(status != FUNCIONANDO) {
+            status = FUNCIONANDO;
+            atualizar_logs(window, LCD, FUNCIONANDO);
+        }
+    }
 }
 
-void user_delay_us(uint32_t period, void *intf_ptr) {
-    usleep(period);
-}
-
-int8_t user_i2c_write(uint8_t reg_addr, const uint8_t *data, uint32_t len, void *intf_ptr) {
-    return BME280_OK;
-}
-
-void usar_i2c(WINDOW *window) {
+void sensor_externo(WINDOW *window) {
     struct bme280_dev dev;
     struct identifier id;
     const char path[] = "/dev/i2c-1";
-    int status_sensor = INICIANDO, status_LCD = INICIANDO;
+    int status_sensor = INICIANDO;
 
     id.fd = open(path, O_RDWR);
 
@@ -555,38 +572,24 @@ void usar_i2c(WINDOW *window) {
     }
 
     atualizar_logs(window, SENSOR_EXTERNO, FUNCIONANDO);
+    incrementar_disp_funcionando(true);
     status_sensor = FUNCIONANDO;
 
-    if (wiringPiSetup() == -1) {
-        atualizar_logs(window, LCD, ERRO_AO_ABRIR);
-        incrementar_disp_funcionando(false);
-        close(id.fd);
-        return;
-    }
-
-    int fd = wiringPiI2CSetup(I2C_ADDR);
-    lcd_init(fd);
-
-    atualizar_logs(window, LCD, FUNCIONANDO);
-    incrementar_disp_funcionando(true);
-    status_LCD = FUNCIONANDO;
-
-    unique_lock<mutex> lck(mtx_i2c);
+    unique_lock<mutex> lck(mtx_SE);
     while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
         cv.wait(lck);
     
     if(qtd_dispositivos_verificados != qtd_dispositivos_funcionando) {
         close(id.fd);
         atualizar_logs(window, SENSOR_EXTERNO, ENCERRADO);
-        atualizar_logs(window, LCD, ENCERRADO);
         return;
     }
 
-    while(status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO)
-        cv.wait(lck);
-
-    while(status_programa == EM_EXECUCAO) {
-        mtx_alarm_i2c.lock();
+    while(status_programa == EM_EXECUCAO or status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO) {
+        while(contador_alarm_SE < 1)
+            cv.wait(lck);
+        
+        contador_alarm_SE = 0;
 
         rslt = bme280_set_sensor_mode(BME280_FORCED_MODE, &dev);
         if (rslt != BME280_OK) {
@@ -615,22 +618,8 @@ void usar_i2c(WINDOW *window) {
                 }
             }
         }
-
-        pair<string, string> linha1_linha2 = transformar_temperaturas(TI, TE, TR);
-
-        ClrLcd(fd);
-        lcdLoc(fd, LINE1);
-        typeln(fd, linha1_linha2.first.c_str());
-        lcdLoc(fd, LINE2);
-        typeln(fd, linha1_linha2.second.c_str());
-
-        if(status_LCD != FUNCIONANDO) {
-            status_LCD = FUNCIONANDO;
-            atualizar_logs(window, LCD, FUNCIONANDO);
-        }
     }
 
     close(id.fd);
     atualizar_logs(window, SENSOR_EXTERNO, ENCERRADO);
-    atualizar_logs(window, LCD, ENCERRADO);
 }

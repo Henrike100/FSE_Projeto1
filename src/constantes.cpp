@@ -26,7 +26,7 @@ const string status[] = {
     "Erro ao Ler Temperatura",
     "Sem Dado Disponível",
     "Funcionando (ligado)",
-    "Funcionando (ligado)",
+    "Funcionando (desligado)",
     "Erro no Sensor Mode",
     "Erro ao abrir I2C bus",
     "Erro ao adquirir acesso",
