@@ -74,7 +74,7 @@ int main(int argc, const char *argv[]) {
 
     ualarm(100000, 0);
 
-    thread thread_entrada(pegar_opcao, entrada);
+    thread thread_entrada(tratar_opcao_usuario, entrada);
     thread thread_saida(mostrar_temperaturas, saida);
     
     thread_csv.join();

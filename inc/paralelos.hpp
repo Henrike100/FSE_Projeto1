@@ -27,12 +27,12 @@ extern int status_programa;
 
 void signal_handler(int signum);
 void alarm_handler(int signum);
-void pegar_opcao(WINDOW *window);
-void mostrar_temperaturas(WINDOW *window);
-void gerar_log_csv(WINDOW *window);
-void comunicar_uart(WINDOW *window);
-void usar_gpio(WINDOW *window);
-void usar_LCD(WINDOW *window);
-void sensor_externo(WINDOW *window);
+void tratar_opcao_usuario(WINDOW *entrada);
+void mostrar_temperaturas(WINDOW *saida);
+void gerar_log_csv(WINDOW *logs);
+void comunicar_uart(WINDOW *logs);
+void usar_gpio(WINDOW *logs);
+void usar_LCD(WINDOW *logs);
+void sensor_externo(WINDOW *logs);
 
 #endif // PARALELOS_HPP
