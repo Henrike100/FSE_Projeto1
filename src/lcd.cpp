@@ -1,12 +1,14 @@
 #include "lcd.hpp"
 
 void lcd_toggle_enable(int fd, int bits) {
-  wiringPiI2CReadReg8(fd, (bits | ENABLE));
-  wiringPiI2CReadReg8(fd, (bits & ~ENABLE));
+    delayMicroseconds(500);
+    wiringPiI2CReadReg8(fd, (bits | ENABLE));
+    delayMicroseconds(500);
+    wiringPiI2CReadReg8(fd, (bits & ~ENABLE));
+    delayMicroseconds(500);
 }
 
 void lcd_byte(int fd, int bits, int mode) {
-
     //Send byte to data pins
     // bits = the data
     // mode = 1 for data, 0 for command
@@ -41,6 +43,7 @@ void lcd_init(int fd) {
     lcd_byte(fd, 0x0C, LCD_CMD); // 0x0F On, Blink Off
     lcd_byte(fd, 0x28, LCD_CMD); // Data length, number of lines, font size
     lcd_byte(fd, 0x01, LCD_CMD); // Clear display
+    delayMicroseconds(500);
 }
 
 void ClrLcd(int fd) {

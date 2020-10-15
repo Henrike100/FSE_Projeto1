@@ -85,8 +85,6 @@ int main(int argc, const char *argv[]) {
     thread_entrada.join();
     thread_saida.join();
 
-    aviso_encerramento(logs, status_programa);
-
     delwin(entrada);
     delwin(saida);
     delwin(logs);

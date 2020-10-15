@@ -340,7 +340,7 @@ void usar_gpio(WINDOW *logs) {
         contador_alarm_gpio = 0;
 
         mtx_TR.lock(); mtx_histerese.lock();
-        double minimo = TR - (histerese/2), maximo = TR + (histerese/2);
+        float minimo = TR - (histerese/2), maximo = TR + (histerese/2);
         mtx_histerese.unlock(); mtx_TR.unlock();
 
         mtx_TI.lock();
@@ -404,7 +404,7 @@ void usar_LCD(WINDOW *logs) {
         cv.wait(lck);
 
     while(status_programa == EM_EXECUCAO) {
-        while(contador_alarm_LCD < 5)
+        while(contador_alarm_LCD < 10)
             cv.wait(lck);
         
         contador_alarm_LCD = 0;
@@ -428,6 +428,7 @@ void usar_LCD(WINDOW *logs) {
         atualizar_logs(logs, LCD, FUNCIONANDO, &status);
     }
 
+    ClrLcd(fd);
     atualizar_logs(logs, LCD, ENCERRADO, &status);
 }
 
