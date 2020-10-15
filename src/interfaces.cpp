@@ -184,9 +184,6 @@ void aviso_encerramento(WINDOW *logs, const int status) {
         case ENCERRAMENTO_COM_ERRO_INICIO:
             mvwprintw(logs, 21, 1, "Nem todos os dispositivos conseguiram ser inicializados. Encerrando em %d...", segundos);
             break;
-        case ENCERRAMENTO_COM_ERRO_EXEC:
-            mvwprintw(logs, 21, 1, "Um dos dispositivos apresentou erro durante a execucao. Encerrando em %d...", segundos);
-            break;
         default:
             mvwprintw(logs, 21, 1, "O programa foi encerrado por uma razao desconhecida. Encerrando em %d...", segundos);
             break;

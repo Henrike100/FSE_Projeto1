@@ -537,6 +537,5 @@ void sensor_externo(WINDOW *logs) {
 
     // Provavelmente essa função será a primeira a acabar, por só levar 100ms
     // Então será responsável por mostrar a mensagem de saída ao usuário
-
     aviso_encerramento(logs, status_programa);
 }

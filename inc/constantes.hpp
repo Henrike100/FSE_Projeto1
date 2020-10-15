@@ -12,16 +12,14 @@ using namespace std;
 
 // Nem todos os dispositivos ou conexões foram inicializados, deve-se encerrar
 #define ENCERRAMENTO_COM_ERRO_INICIO        0
-// Durante a execução, algum dispositivo ou conexão apresentou problema, deve-se encerrar
-#define ENCERRAMENTO_COM_ERRO_EXEC          1
 // O programa recebeu algum sinal, deve-se encerrar
-#define ENCERRAMENTO_VIA_SIGNAL             2
+#define ENCERRAMENTO_VIA_SIGNAL             1
 // O usuário desejou encerrar a execução do programa por vontade própria
-#define ENCERRAMENTO_VIA_USER               3
+#define ENCERRAMENTO_VIA_USER               2
 // O programa só pode realmente comecar quando o usuario digitar algo pela primeira vez
-#define ESPERANDO_PRIM_ENTRADA_USUARIO      4
+#define ESPERANDO_PRIM_ENTRADA_USUARIO      3
 // Execucao normal, apos o usuario envia a entrada pelo menos uma vez
-#define EM_EXECUCAO                         5
+#define EM_EXECUCAO                         4
 
 // status
 #define INICIANDO                   0

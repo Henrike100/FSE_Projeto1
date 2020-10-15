@@ -15,7 +15,7 @@ int main(int argc, const char *argv[]) {
     initscr();
 
     getmaxyx(stdscr, size_y, size_x);
-    const int min_colunas = 144, min_linhas = 28;
+    const int min_colunas = 160, min_linhas = 30;
 
     if(size_y < min_linhas or size_x < min_colunas) {
         endwin();
