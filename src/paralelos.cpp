@@ -383,7 +383,6 @@ void usar_LCD(WINDOW *logs) {
     if (wiringPiSetup() == -1) {
         atualizar_logs(logs, LCD, ERRO_AO_ABRIR, &status);
         incrementar_disp_funcionando(false);
-        close(id.fd);
         return;
     }
 
@@ -399,7 +398,7 @@ void usar_LCD(WINDOW *logs) {
         cv.wait(lck);
     
     if(qtd_dispositivos_verificados != qtd_dispositivos_funcionando) {
-        atualizar_logs(logs, LCD, ENCERRADO);
+        atualizar_logs(logs, LCD, ENCERRADO, &status);
         return;
     }
 
@@ -520,5 +519,5 @@ void sensor_externo(WINDOW *logs) {
     }
 
     close(id.fd);
-    atualizar_logs(logs, SENSOR_EXTERNO, ENCERRADO);
+    atualizar_logs(logs, SENSOR_EXTERNO, ENCERRADO, &status);
 }

@@ -10,6 +10,11 @@
 
 using namespace std;
 
+struct identifier {
+    uint8_t dev_addr;
+    int8_t fd;
+};
+
 pair<string, string> transformar_temperaturas(const float TI, const float TE, const float TR);
 int8_t user_i2c_read(uint8_t reg_addr, uint8_t *data, uint32_t len, void *intf_ptr);
 void user_delay_us(uint32_t period, void *intf_ptr);
