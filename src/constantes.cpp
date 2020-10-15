@@ -31,4 +31,5 @@ const string status[] = {
     "Erro ao abrir I2C bus",
     "Erro ao adquirir acesso",
     "Erro ao incializar dispositivo",
+    "Erro ao Configurar Sensor",
 };

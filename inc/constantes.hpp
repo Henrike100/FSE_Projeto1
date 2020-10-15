@@ -38,6 +38,7 @@ using namespace std;
 #define ERRO_I2C_BUS               11
 #define ERRO_I2C_BUS_ACESSO        12
 #define ERRO_I2C_INICIAR_DISP      13
+#define ERRO_AO_CONFIG_SENSOR      14
 
 // dispositivos
 #define SENSOR_INTERNO              0

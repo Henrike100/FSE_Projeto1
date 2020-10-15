@@ -108,6 +108,7 @@ void mostrar_temperaturas(WINDOW *saida) {
     }
 
     while(status_programa == EM_EXECUCAO or status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO) {
+        // espera 500ms
         while(contador_alarm_print < 5)
             cv.wait(lck);
         
@@ -148,6 +149,7 @@ void gerar_log_csv(WINDOW *logs) {
         cv.wait(lck);
 
     while(status_programa == EM_EXECUCAO) {
+        // espera 2s
         while(contador_alarm_csv < 20)
             cv.wait(lck);
         
@@ -172,8 +174,7 @@ void gerar_log_csv(WINDOW *logs) {
         mtx_TE.unlock();
         mtx_TI.unlock();
 
-        //if(num_escritos != 38) {
-        if(num_escritos < 0) {
+        if(num_escritos != 38) {
             atualizar_logs(logs, CSV, ERRO_AO_ESCREVER, &status);
         }
     }
@@ -226,6 +227,7 @@ void comunicar_uart(WINDOW *logs) {
     }
 
     while(status_programa == EM_EXECUCAO or status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO) {
+        // espera 500ms
         while(contador_alarm_uart < 5)
             cv.wait(lck);
         
@@ -334,6 +336,7 @@ void usar_gpio(WINDOW *logs) {
         cv.wait(lck);
 
     while(status_programa == EM_EXECUCAO) {
+        // espera 500ms
         while(contador_alarm_gpio < 5)
             cv.wait(lck);
         
@@ -404,6 +407,7 @@ void usar_LCD(WINDOW *logs) {
         cv.wait(lck);
 
     while(status_programa == EM_EXECUCAO) {
+        // espera 1s
         while(contador_alarm_LCD < 10)
             cv.wait(lck);
         
@@ -502,6 +506,7 @@ void sensor_externo(WINDOW *logs) {
     }
 
     while(status_programa == EM_EXECUCAO or status_programa == ESPERANDO_PRIM_ENTRADA_USUARIO) {
+        // espera 100ms
         while(contador_alarm_SE < 1)
             cv.wait(lck);
         
@@ -529,4 +534,9 @@ void sensor_externo(WINDOW *logs) {
 
     close(id.fd);
     atualizar_logs(logs, SENSOR_EXTERNO, ENCERRADO, &status);
+
+    // Provavelmente essa função será a primeira a acabar, por só levar 100ms
+    // Então será responsável por mostrar a mensagem de saída ao usuário
+
+    aviso_encerramento(logs, status_programa);
 }
