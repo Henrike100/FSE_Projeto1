@@ -102,18 +102,23 @@ void atualizar_menu(WINDOW *window, const int opcao_usuario, const float histere
     mtx_interface.unlock();
 }
 
-void atualizar_logs(WINDOW *window, const int dispositivo, const int st) {
+void atualizar_logs(WINDOW *window, const int dispositivo, const int novo_status, int *status_atual) {
+    if(novo_status == *status_atual)
+        return;
+
     mtx_interface.lock();
     const int line_size = getmaxx(window);
     const int linha = (2*dispositivo)+6;
 
     wmove(window, linha, (line_size/2)+2);
     wclrtoeol(window);
-    mvwprintw(window, linha, (line_size/2)+2, status[st].c_str());
+    mvwprintw(window, linha, (line_size/2)+2, status[novo_status].c_str());
 
     box(window, 0, 0);
     wrefresh(window);
     mtx_interface.unlock();
+
+    *status_atual = novo_status;
 }
 
 void aviso_encerramento(WINDOW *logs, const int status) {
