@@ -22,7 +22,7 @@ void iniciar_entrada(WINDOW *entrada) {
     mvwprintw(entrada, 6, 1, "2. Usando o Potenciômetro");
     mvwprintw(entrada, 7, 1, "3. Definir Histerese");
     mvwprintw(entrada, 9, 1, "0. Sair");
-
+    box(entrada, 0, 0);
     wrefresh(entrada);
     mtx_interface.unlock();
 }

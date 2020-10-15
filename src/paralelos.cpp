@@ -99,12 +99,6 @@ void tratar_opcao_usuario(WINDOW *entrada) {
 }
 
 void mostrar_temperaturas(WINDOW *saida) {
-    mtx_interface.lock();
-    const int line_size = getmaxx(saida);
-    mtx_interface.unlock();
-    
-    const string spaces(((line_size/3)-5)/2, ' ');
-
     unique_lock<mutex> lck(mtx_print);
     while(qtd_dispositivos_verificados != NUM_DISPOSITIVOS)
         cv.wait(lck);
@@ -265,7 +259,10 @@ void comunicar_uart(WINDOW *logs) {
 
         // opcao 2 -> Pegar temperatura pelo potenciometro
         mtx_opcao.lock();
-        if(opcao_usuario == 2) {
+        bool pegar_TR = (opcao_usuario == 2);
+        mtx_opcao.unlock();
+
+        if(pegar_TR) {
             // Pede temperatura de referencia
             count = write(uart0_filestream, &pede_TR[0], 5);
 
@@ -292,7 +289,6 @@ void comunicar_uart(WINDOW *logs) {
                 }
             }
         }
-        mtx_opcao.unlock();
     }
 
     close(uart0_filestream);
@@ -348,7 +344,10 @@ void usar_gpio(WINDOW *logs) {
         mtx_histerese.unlock(); mtx_TR.unlock();
 
         mtx_TI.lock();
-        if(TI < minimo) {
+        bool esta_menor = (TI < minimo), esta_maior = (TI > maximo);
+        mtx_TI.unlock();
+
+        if(esta_menor) {
             if(status_resistor == FUNCIONANDO_DESLIGADO) {
                 bcm2835_gpio_write(PINO_RESISTOR, 0);
                 atualizar_logs(logs, RESISTOR, FUNCIONANDO_LIGADO, &status_resistor);
@@ -357,7 +356,7 @@ void usar_gpio(WINDOW *logs) {
                 atualizar_logs(logs, VENTOINHA, FUNCIONANDO_DESLIGADO, &status_ventoinha);
             }
         }
-        else if(TI > maximo) {
+        else if(esta_maior) {
             if(status_ventoinha == FUNCIONANDO_DESLIGADO) {
                 bcm2835_gpio_write(PINO_VENTOINHA, 0);
                 atualizar_logs(logs, VENTOINHA, FUNCIONANDO_LIGADO, &status_ventoinha);
@@ -366,7 +365,6 @@ void usar_gpio(WINDOW *logs) {
                 atualizar_logs(logs, RESISTOR, FUNCIONANDO_DESLIGADO, &status_resistor);
             }
         }
-        mtx_TI.unlock();
     }
 
     bcm2835_gpio_write(PINO_RESISTOR, 1);
@@ -411,16 +409,26 @@ void usar_LCD(WINDOW *logs) {
         
         contador_alarm_LCD = 0;
 
-        pair<string, string> linha1_linha2 = transformar_temperaturas(TI, TE, TR);
+        char linha1[20], linha2[20];
+
+        mtx_TI.lock(); mtx_TE.lock();
+        sprintf(linha1, "TI:%.1f TE:%.1f", TI, TE);
+        mtx_TE.unlock(); mtx_TI.unlock();
+
+        mtx_TR.lock();
+        sprintf(linha2, "TR:%.1f", TR);
+        mtx_TR.unlock();
 
         ClrLcd(fd);
         lcdLoc(fd, LINE1);
-        typeln(fd, linha1_linha2.first.c_str());
+        typeln(fd, linha1);
         lcdLoc(fd, LINE2);
-        typeln(fd, linha1_linha2.second.c_str());
+        typeln(fd, linha2);
 
         atualizar_logs(logs, LCD, FUNCIONANDO, &status);
     }
+
+    atualizar_logs(logs, LCD, ENCERRADO, &status);
 }
 
 void sensor_externo(WINDOW *logs) {
